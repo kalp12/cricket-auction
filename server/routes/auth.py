@@ -30,7 +30,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
 
     # Create access token
-    from server.auth.auth import create_access_token
+    from auth.auth import create_access_token
     access_token = create_access_token(data={"sub": form_data.username})
 
     return TokenResponse(access_token=access_token, token_type="bearer")
