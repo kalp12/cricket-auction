@@ -4,6 +4,8 @@ import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from db.database import engine, Base
+from models import models
 
 app = FastAPI(title="Cricket Auction API")
 
@@ -15,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Create tables on startup
+Base.metadata.create_all(bind=engine)
 
 # Placeholder root endpoint
 @app.get("/")
