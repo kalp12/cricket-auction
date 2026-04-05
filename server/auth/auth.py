@@ -9,7 +9,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import ValidationError
 
-from server.schemas.auth import UserResponse
+from schemas.auth import UserResponse
 
 # Load environment variables
 load_dotenv()

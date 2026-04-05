@@ -5,8 +5,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db.database import engine, Base
-from models import models
-from routes import auth as auth_router
+from models.models import Player, Team, TeamPlayer, Auction, Bid
+from routes.auth import router as auth_router
 
 app = FastAPI(title="Cricket Auction API")
 
@@ -23,7 +23,7 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 # Include auth router
-app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/api/auth")
 
 # Placeholder root endpoint
 @app.get("/")

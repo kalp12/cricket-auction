@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from server.auth.auth import (
+from auth.auth import (
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
     get_current_user,
 )
-from server.schemas.auth import (
+from schemas.auth import (
     LoginRequest,
     TokenResponse,
     UserResponse,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponse)
