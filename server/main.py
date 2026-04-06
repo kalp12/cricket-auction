@@ -9,6 +9,7 @@ from models.models import Player, Team, TeamPlayer, Auction, Bid
 from routes.auth import router as auth_router
 from routes.player import router as player_router
 from routes.team import router as team_router
+from routes.auction import router as auction_router
 
 app = FastAPI(title="Cricket Auction API")
 
@@ -32,6 +33,8 @@ app.include_router(player_router, prefix="/api/players", tags=["players"])
 
 # Include team router
 app.include_router(team_router, prefix="/api/teams", tags=["teams"])
+
+app.include_router(auction_router, prefix="/api/auction", tags=["auction"])
 
 
 # Placeholder root endpoint
