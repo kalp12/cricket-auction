@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from db.database import engine, Base
 from models.models import Player, Team, TeamPlayer, Auction, Bid
 from routes.auth import router as auth_router
+from routes.player import router as player_router
 
 app = FastAPI(title="Cricket Auction API")
 
@@ -24,6 +25,9 @@ Base.metadata.create_all(bind=engine)
 
 # Include auth router
 app.include_router(auth_router, prefix="/api/auth")
+
+# Include player router
+app.include_router(player_router, prefix="/api/players", tags=["players"])
 
 # Placeholder root endpoint
 @app.get("/")
