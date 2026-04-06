@@ -30,6 +30,10 @@ app.include_router(auth_router, prefix="/api/auth")
 # Include player router
 app.include_router(player_router, prefix="/api/players", tags=["players"])
 
+# Include team router
+app.include_router(team_router, prefix="/api/teams", tags=["teams"])
+
+
 # Placeholder root endpoint
 @app.get("/")
 async def root():
