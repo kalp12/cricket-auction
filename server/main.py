@@ -8,6 +8,7 @@ from db.database import engine, Base
 from models.models import Player, Team, TeamPlayer, Auction, Bid
 from routes.auth import router as auth_router
 from routes.player import router as player_router
+from routes.team import router as team_router
 
 app = FastAPI(title="Cricket Auction API")
 
