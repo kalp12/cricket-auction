@@ -24,6 +24,7 @@ export const createAuction = async (data: {
   budget_per_team?: number
   min_players?: number
   max_players?: number
+  image_url?: string
 }) => (await axios.post(`${BASE}/api/auctions`, data, { headers: headers() })).data
 
 export const listAuctions = async () =>
@@ -106,3 +107,32 @@ export const deleteTeam = async (id: number) =>
 
 export const getTeamBudget = async (id: number) =>
   (await axios.get(`${BASE}/api/teams/${id}/budget`, { headers: headers() })).data
+
+// ── Bid Increment Slabs ───────────────────────────────
+export const getSlabs = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/slabs`, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const createSlab = async (data: { auction_id: number; min_price: number; max_price: number; increment: number }) =>
+  (await axios.post(`${BASE}/api/slabs`, data, { headers: headers() })).data
+
+export const bulkCreateSlabs = async (slabs: { auction_id: number; min_price: number; max_price: number; increment: number }[]) =>
+  (await axios.post(`${BASE}/api/slabs/bulk`, { slabs }, { headers: headers() })).data
+
+export const createDefaultSlabs = async (auctionId: number) =>
+  (await axios.post(`${BASE}/api/slabs/defaults/${auctionId}`, null, { headers: headers() })).data
+
+export const updateSlab = async (id: number, data: { min_price?: number; max_price?: number; increment?: number }) =>
+  (await axios.put(`${BASE}/api/slabs/${id}`, data, { headers: headers() })).data
+
+export const deleteSlab = async (id: number) =>
+  (await axios.delete(`${BASE}/api/slabs/${id}`, { headers: headers() })).data
+
+// ── Image Upload ──────────────────────────────────────
+export const uploadImage = async (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/upload/image`, formData, {
+    headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data // { url: "/uploads/abc123.png" }
+}

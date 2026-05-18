@@ -109,9 +109,15 @@ export default function AuctionDetail() {
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl font-bold text-blue-600">{auction.name?.[0]?.toUpperCase()}</span>
-            </div>
+            {auction.image_url ? (
+              <div className="w-12 h-12 rounded-lg overflow-hidden">
+                <img src={`http://localhost:8000${auction.image_url}`} alt={auction.name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl font-bold text-blue-600">{auction.name?.[0]?.toUpperCase()}</span>
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-bold text-gray-800">{auction.name}</h2>
               <div className="flex items-center gap-3 mt-1">
@@ -304,7 +310,7 @@ export default function AuctionDetail() {
                 <TrendingUp className="w-4 h-4 text-gray-400" />
                 <p className="text-sm text-gray-600">Bid Increments</p>
               </div>
-              <span className="text-xs text-gray-400">Configure in Settings</span>
+              <button onClick={() => navigate(`/auctions/${id}/settings`)} className="text-xs text-blue-500 hover:text-blue-700">Configure</button>
             </div>
           </div>
         </div>
@@ -339,11 +345,11 @@ export default function AuctionDetail() {
       {(auction.status === 'waiting' || auction.status === 'paused') && (
         <div className="mt-6 flex gap-3">
           <button
-            onClick={() => navigate(`/auction-panel?auction=${id}`)}
+            onClick={() => navigate(`/auctions/${id}/live`)}
             className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
             <Link className="w-5 h-5" />
-            Go to Auction Panel
+            Go to Live Auction
           </button>
         </div>
       )}

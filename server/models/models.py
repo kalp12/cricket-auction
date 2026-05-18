@@ -64,12 +64,25 @@ class Auction(Base):
     budget_per_team = Column(Float, default=100000000) # 100 crore
     min_players = Column(Integer, default=5)
     max_players = Column(Integer, default=18)
+    image_url = Column(String, nullable=True)
 
     current_player = relationship("Player", foreign_keys=[current_player_id])
     current_team = relationship("Team", foreign_keys=[current_team_id])
     players = relationship("Player", foreign_keys="[Player.auction_id]", overlaps="auction")
     teams = relationship("Team", foreign_keys="[Team.auction_id]", overlaps="auction")
     bids = relationship("Bid", back_populates="auction")
+
+
+class BidIncrementSlab(Base):
+    __tablename__ = "bid_increment_slabs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
+    min_price = Column(Float, nullable=False)
+    max_price = Column(Float, nullable=False)
+    increment = Column(Float, nullable=False)
+
+    auction = relationship("Auction", backref="bid_slabs")
 
 
 class Bid(Base):

@@ -22,6 +22,7 @@ def create_auction(auction: AuctionCreate, db: Session = Depends(get_db), curren
         budget_per_team=auction.budget_per_team,
         min_players=auction.min_players,
         max_players=auction.max_players,
+        image_url=auction.image_url,
     )
     db.add(db_auction)
     db.commit()
@@ -91,21 +92,42 @@ def next_player(auction_id: int, db: Session = Depends(get_db), current_user: di
     if not db_auction:
         raise HTTPException(status_code=404, detail="Auction not found")
 
-    if db_auction.status != "live":
+    if db_auction.status not in ("live", "waiting"):
         raise HTTPException(status_code=400, detail="Auction not in progress")
 
-    next_player = db.query(Player).filter(
-        Player.status == "unsold"
-    ).first()
+    # If there's a current player still unsold, skip it
+    if db_auction.current_player_id:
+        current = db.query(Player).filter(Player.id == db_auction.current_player_id).first()
+        if current and current.status == "unsold":
+            exclude_id = current.id
+        else:
+            exclude_id = None
+    else:
+        exclude_id = None
 
-    if not next_player:
+    query = db.query(Player).filter(
+        Player.auction_id == auction_id,
+        Player.status == "unsold"
+    )
+    if exclude_id:
+        query = query.filter(Player.id != exclude_id)
+
+    next_p = query.order_by(Player.id).first()
+
+    if not next_p:
         db_auction.status = "ended"
         db.commit()
         return {"message": "No more players. Auction ended."}
 
-    db_auction.current_player_id = next_player.id
-    db_auction.current_bid = next_player.base_price
+    db_auction.current_player_id = next_p.id
+    db_auction.current_bid = next_p.base_price
     db_auction.current_team_id = None
+    db_auction.status = "live"
     db.commit()
 
-    return {"message": "Next player set successfully"}
+    return {
+        "message": "Next player set successfully",
+        "player_id": next_p.id,
+        "player_name": next_p.name,
+        "base_price": next_p.base_price,
+    }

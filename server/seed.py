@@ -4,7 +4,7 @@ sys.path.insert(0, '.')
 
 from db.database import SessionLocal, engine, Base
 import models.models # noqa: F401 - register models
-from models.models import Player, Team, Auction, Bid, TeamPlayer
+from models.models import Player, Team, Auction, Bid, TeamPlayer, BidIncrementSlab
 
 Base.metadata.create_all(bind=engine)
 
@@ -12,7 +12,7 @@ db = SessionLocal()
 
 # Clear existing data and reset auto-increment
 from sqlalchemy import text
-db.execute(text("TRUNCATE TABLE bids, team_players, auctions, players, teams RESTART IDENTITY CASCADE"))
+db.execute(text("TRUNCATE TABLE bids, team_players, bid_increment_slabs, auctions, players, teams RESTART IDENTITY CASCADE"))
 db.commit()
 
 # Create auction first
@@ -88,7 +88,22 @@ for t in teams_data:
 
 db.commit()
 
-print(f"Seeded {len(players_data)} players and {len(teams_data)} teams")
+# --- Bid Increment Slabs (IPL-style) ---
+slabs_data = [
+    {"min_price": 0, "max_price": 5000000, "increment": 1000000},
+    {"min_price": 5000000, "max_price": 10000000, "increment": 2500000},
+    {"min_price": 10000000, "max_price": 50000000, "increment": 2500000},
+    {"min_price": 50000000, "max_price": 100000000, "increment": 5000000},
+    {"min_price": 100000000, "max_price": 999999999, "increment": 10000000},
+]
+
+for s in slabs_data:
+    s["auction_id"] = auction.id
+    db.add(BidIncrementSlab(**s))
+
+db.commit()
+
+print(f"Seeded {len(players_data)} players, {len(teams_data)} teams, and {len(slabs_data)} bid slabs")
 print(f"Auction created (id={auction.id})")
 
 db.close()

@@ -4,7 +4,6 @@ import {
   PlusCircle,
   Briefcase,
   Gavel,
-  Settings,
   LogOut,
   Trophy
 } from 'lucide-react'
@@ -14,7 +13,6 @@ const links = [
   { to: '/auctions/new', icon: PlusCircle, label: 'New Auction' },
   { to: '/auctions', icon: Briefcase, label: 'My Auctions' },
   { to: '/auction-panel', icon: Gavel, label: 'Auction Panel' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function Sidebar() {

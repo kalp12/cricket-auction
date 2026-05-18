@@ -9,6 +9,7 @@ import AuctionDetail from './pages/AuctionDetail'
 import Teams from './pages/Teams'
 import Players from './pages/Players'
 import AuctionPanel from './pages/AuctionPanel'
+import AuctionLive from './pages/AuctionLive'
 import Settings from './pages/Settings'
 
 const isAuth = () => !!localStorage.getItem('token')
@@ -38,7 +39,8 @@ export default function App() {
           <Route path="auctions/:auctionId/teams" element={<Teams />} />
           <Route path="auctions/:auctionId/players" element={<Players />} />
           <Route path="auction-panel" element={<AuctionPanel />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="auctions/:auctionId/live" element={<AuctionLive />} />
+          <Route path="auctions/:auctionId/settings" element={<Settings />} />
         </Route>
         <Route path="/auction" element={isAuth() ? <Auction /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/dashboard" />} />

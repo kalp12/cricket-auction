@@ -7,6 +7,7 @@ from db.database import get_db
 from auth.auth import get_current_user
 from models.models import Auction, Bid, Player, Team, TeamPlayer
 from schemas.auction import BidCreate, AuctionResponse, AuctionStateResponse
+from routes.bids import manager as ws_manager
 
 router = APIRouter(tags=["auction"])
 
@@ -151,21 +152,55 @@ async def mark_sold(
 
         winning_team.remaining_budget -= sold_price
 
-        auction.status = "waiting"
-        auction.current_player_id = None
-        auction.current_bid = 0
-        auction.current_team_id = None
+        # Auto-advance to next unsold player
+        next_p = db.query(Player).filter(
+            Player.auction_id == auction.id,
+            Player.status == "unsold"
+        ).order_by(Player.id).first()
+
+        if next_p:
+            auction.current_player_id = next_p.id
+            auction.current_bid = next_p.base_price
+            auction.current_team_id = None
+            # Keep auction live
+        else:
+            # No more players — end the auction
+            auction.status = "ended"
+            auction.current_player_id = None
+            auction.current_bid = 0
+            auction.current_team_id = None
 
         db.commit()
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+    db.refresh(auction)
+    next_player_name = None
+    if auction.current_player_id:
+        np = db.query(Player).filter(Player.id == auction.current_player_id).first()
+        next_player_name = np.name if np else None
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "sold",
+        "player_name": player.name,
+        "team_name": winning_team.name,
+        "price": sold_price,
+        "current_player_id": auction.current_player_id,
+        "current_player_name": next_player_name,
+        "current_bid": auction.current_bid,
+        "status": auction.status,
+    })
+
     return {
         "message": "Player sold",
         "player": player.name,
         "team": winning_team.name,
-        "price": sold_price
+        "price": sold_price,
+        "status": auction.status,
+        "current_player_id": auction.current_player_id,
+        "current_player_name": next_player_name,
+        "current_bid": auction.current_bid,
     }
 
 
@@ -183,14 +218,50 @@ async def mark_unsold(
         raise HTTPException(status_code=404, detail="Player not found")
 
     player.status = "unsold"
-    auction.status = "waiting"
-    auction.current_player_id = None
-    auction.current_bid = 0
-    auction.current_team_id = None
+
+    # Auto-advance to next unsold player (skip the current one since it's still unsold)
+    next_p = db.query(Player).filter(
+        Player.auction_id == auction.id,
+        Player.status == "unsold",
+        Player.id != player.id
+    ).order_by(Player.id).first()
+
+    if next_p:
+        auction.current_player_id = next_p.id
+        auction.current_bid = next_p.base_price
+        auction.current_team_id = None
+        # Keep auction live
+    else:
+        # No more unsold players
+        auction.status = "ended"
+        auction.current_player_id = None
+        auction.current_bid = 0
+        auction.current_team_id = None
 
     db.commit()
 
-    return {"message": "Player marked as unsold"}
+    db.refresh(auction)
+    next_player_name = None
+    if auction.current_player_id:
+        np = db.query(Player).filter(Player.id == auction.current_player_id).first()
+        next_player_name = np.name if np else None
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "unsold",
+        "player_name": player.name,
+        "current_player_id": auction.current_player_id,
+        "current_player_name": next_player_name,
+        "current_bid": auction.current_bid,
+        "status": auction.status,
+    })
+
+    return {
+        "message": "Player marked as unsold",
+        "status": auction.status,
+        "current_player_id": auction.current_player_id,
+        "current_player_name": next_player_name,
+        "current_bid": auction.current_bid,
+    }
 
 
 @router.post("/pause")

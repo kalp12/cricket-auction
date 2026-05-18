@@ -1,5 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+
+from schemas.slab import SlabSchema
 
 
 class AuctionCreate(BaseModel):
@@ -10,6 +12,7 @@ class AuctionCreate(BaseModel):
     budget_per_team: float = 100000000
     min_players: int = 5
     max_players: int = 18
+    image_url: Optional[str] = None
 
 
 class AuctionUpdate(BaseModel):
@@ -21,6 +24,7 @@ class AuctionUpdate(BaseModel):
     min_players: Optional[int] = None
     max_players: Optional[int] = None
     status: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class AuctionSchema(BaseModel):
@@ -36,6 +40,8 @@ class AuctionSchema(BaseModel):
     budget_per_team: float = 100000000
     min_players: int = 5
     max_players: int = 18
+    image_url: Optional[str] = None
+    bid_slabs: List[SlabSchema] = []
 
     class Config:
         from_attributes = True

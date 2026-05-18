@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
 from models.models import Bid, Auction, Team
+from routes.slabs import get_next_bid_amount
 import json
 from typing import Dict, List
 
@@ -77,10 +78,11 @@ async def websocket_endpoint(
             if msg.get("type") == "bid":
                 team_id = msg.get("team_id")
                 amount = msg.get("amount")
+                auto = msg.get("auto", False)
 
-                if not team_id or not amount:
+                if not team_id:
                     await websocket.send_text(json.dumps(
-                        {"type": "error", "message": "team_id and amount required"}
+                        {"type": "error", "message": "team_id required"}
                     ))
                     continue
 
@@ -96,6 +98,16 @@ async def websocket_endpoint(
                 if auction.status != "live":
                     await websocket.send_text(json.dumps(
                         {"type": "error", "message": "Auction is not live"}
+                    ))
+                    continue
+
+                # Auto-increment: calculate next valid bid from slabs
+                if auto and not amount:
+                    amount = get_next_bid_amount(auction_id, auction.current_bid, db)
+
+                if not amount:
+                    await websocket.send_text(json.dumps(
+                        {"type": "error", "message": "amount required (or set auto=true)"}
                     ))
                     continue
 
