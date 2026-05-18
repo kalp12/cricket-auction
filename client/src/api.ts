@@ -1,0 +1,108 @@
+import axios from 'axios'
+
+const BASE = 'http://localhost:8000'
+const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` })
+
+// ── Auth ──────────────────────────────────────────────
+export const login = async (u: string, p: string) => {
+  const form = new URLSearchParams()
+  form.append('username', u)
+  form.append('password', p)
+  const res = await axios.post(`${BASE}/api/auth/login`, form)
+  return res.data
+}
+
+export const getMe = async () =>
+  (await axios.get(`${BASE}/api/auth/me`, { headers: headers() })).data
+
+// ── Auctions (CRUD) ───────────────────────────────────
+export const createAuction = async (data: {
+  name: string
+  timer_seconds?: number
+  timer_enabled?: number
+  base_bid?: number
+  budget_per_team?: number
+  min_players?: number
+  max_players?: number
+}) => (await axios.post(`${BASE}/api/auctions`, data, { headers: headers() })).data
+
+export const listAuctions = async () =>
+  (await axios.get(`${BASE}/api/auctions`, { headers: headers() })).data
+
+export const getAuction = async (id: number) =>
+  (await axios.get(`${BASE}/api/auctions/${id}`, { headers: headers() })).data
+
+export const updateAuction = async (id: number, data: any) =>
+  (await axios.put(`${BASE}/api/auctions/${id}`, data, { headers: headers() })).data
+
+export const deleteAuction = async (id: number) =>
+  (await axios.delete(`${BASE}/api/auctions/${id}`, { headers: headers() })).data
+
+export const startAuctionById = async (id: number) =>
+  (await axios.post(`${BASE}/api/auctions/${id}/start`, null, { headers: headers() })).data
+
+export const nextPlayer = async (id: number) =>
+  (await axios.post(`${BASE}/api/auctions/${id}/next-player`, null, { headers: headers() })).data
+
+// ── Auction Flow (single active auction) ──────────────
+export const getAuctionState = async () =>
+  (await axios.get(`${BASE}/api/auction/state`, { headers: headers() })).data
+
+export const startAuction = async (player_id: number, timer_seconds = 60) =>
+  (await axios.post(`${BASE}/api/auction/start`, null, { params: { player_id, timer_seconds }, headers: headers() })).data
+
+export const placeBid = async (team_id: number, amount: number) =>
+  (await axios.post(`${BASE}/api/auction/bid`, { team_id, amount }, { headers: headers() })).data
+
+export const soldPlayer = async () =>
+  (await axios.post(`${BASE}/api/auction/sold`, {}, { headers: headers() })).data
+
+export const unsoldPlayer = async () =>
+  (await axios.post(`${BASE}/api/auction/unsold`, {}, { headers: headers() })).data
+
+export const pauseAuction = async () =>
+  (await axios.post(`${BASE}/api/auction/pause`, {}, { headers: headers() })).data
+
+export const resumeAuction = async () =>
+  (await axios.post(`${BASE}/api/auction/resume`, {}, { headers: headers() })).data
+
+export const getAuctionHistory = async () =>
+  (await axios.get(`${BASE}/api/auction/history`, { headers: headers() })).data
+
+// ── Players (scoped to auction) ───────────────────────
+export const getPlayers = async (auctionId: number, params?: { role?: string; status?: string }) =>
+  (await axios.get(`${BASE}/api/players`, { params: { auction_id: auctionId, ...params }, headers: headers() })).data
+
+export const getPlayer = async (id: number) =>
+  (await axios.get(`${BASE}/api/players/${id}`, { headers: headers() })).data
+
+export const createPlayer = async (data: { auction_id: number; name: string; role: string; country: string; base_price: number; image_url?: string }) =>
+  (await axios.post(`${BASE}/api/players`, data, { headers: headers() })).data
+
+export const updatePlayer = async (id: number, data: any) =>
+  (await axios.put(`${BASE}/api/players/${id}`, data, { headers: headers() })).data
+
+export const deletePlayer = async (id: number) =>
+  (await axios.delete(`${BASE}/api/players/${id}`, { headers: headers() })).data
+
+export const bulkCreatePlayers = async (players: any[]) =>
+  (await axios.post(`${BASE}/api/players/bulk`, players, { headers: headers() })).data
+
+// ── Teams (scoped to auction) ─────────────────────────
+export const getTeams = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/teams`, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const getTeam = async (id: number) =>
+  (await axios.get(`${BASE}/api/teams/${id}`, { headers: headers() })).data
+
+export const createTeam = async (data: { auction_id: number; name: string; short_name?: string; total_budget: number; max_players?: number; logo_url?: string }) =>
+  (await axios.post(`${BASE}/api/teams`, data, { headers: headers() })).data
+
+export const updateTeam = async (id: number, data: any) =>
+  (await axios.put(`${BASE}/api/teams/${id}`, data, { headers: headers() })).data
+
+export const deleteTeam = async (id: number) =>
+  (await axios.delete(`${BASE}/api/teams/${id}`, { headers: headers() })).data
+
+export const getTeamBudget = async (id: number) =>
+  (await axios.get(`${BASE}/api/teams/${id}/budget`, { headers: headers() })).data

@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from websocket.manager import ConnectionManager
-from routes.ws import manager
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -20,32 +18,26 @@ async def start_auction(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    # Check if player exists and is unsold
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
     if player.status != "unsold":
         raise HTTPException(status_code=400, detail="Player is not available for auction")
 
-    # Check if another auction is already live
     live_auction = db.query(Auction).filter(Auction.status == "live").first()
     if live_auction:
         raise HTTPException(status_code=400, detail="Another auction is already live")
 
-    # Create or get single auction record
-    auction = db.query(Auction).first()
+    auction = db.query(Auction).filter(Auction.id == player.auction_id).first()
     if not auction:
-        auction = Auction(status="waiting", current_bid=0, timer_seconds=60)
-        db.add(auction)
-        db.flush()
-    else:
-        auction.status = "waiting"
-        auction.current_player_id = None
-        auction.current_bid = 0
-        auction.current_team_id = None
-        auction.timer_seconds = timer_seconds
+        raise HTTPException(status_code=404, detail="Auction not found")
 
-    # Start auction for this player
+    auction.status = "waiting"
+    auction.current_player_id = None
+    auction.current_bid = 0
+    auction.current_team_id = None
+    auction.timer_seconds = timer_seconds
+
     auction.current_player_id = player_id
     auction.current_bid = player.base_price
     auction.status = "live"
@@ -76,34 +68,31 @@ async def place_bid(
     if not auction:
         raise HTTPException(status_code=400, detail="No live auction")
 
-    # Validate bid amount
     if bid_data.amount <= auction.current_bid:
         raise HTTPException(status_code=400, detail="Bid must be higher than current bid")
 
-    # Validate team exists
     team = db.query(Team).filter(Team.id == bid_data.team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    # Check team budget
+    # Verify team belongs to this auction
+    if team.auction_id != auction.id:
+        raise HTTPException(status_code=400, detail="Team does not belong to this auction")
+
     if team.remaining_budget < bid_data.amount:
         raise HTTPException(status_code=400, detail="Insufficient budget")
 
-    # Check team max players (optional during bidding)
     team_players = db.query(TeamPlayer).filter(TeamPlayer.team_id == team.id).count()
     if team_players >= team.max_players:
         raise HTTPException(status_code=400, detail="Team has reached max players")
 
-    # Check if team already placed highest bid (consecutive bid check)
     if auction.current_team_id == team.id:
         raise HTTPException(status_code=400, detail="Cannot place consecutive bids on same player")
 
-    # Check player exists
     player = db.query(Player).filter(Player.id == auction.current_player_id).first()
     if not player:
         raise HTTPException(status_code=404, detail="Current player not found")
 
-    # Create bid record
     bid = Bid(
         auction_id=auction.id,
         team_id=team.id,
@@ -113,7 +102,6 @@ async def place_bid(
     )
     db.add(bid)
 
-    # Update auction
     auction.current_bid = bid_data.amount
     auction.current_team_id = team.id
 
@@ -149,23 +137,20 @@ async def mark_sold(
         raise HTTPException(status_code=404, detail="Player not found")
 
     winning_team = db.query(Team).filter(Team.id == auction.current_team_id).first()
+    sold_price = auction.current_bid
 
     try:
-        # Mark player as sold
         player.status = "sold"
 
-        # Create TeamPlayer record
         team_player = TeamPlayer(
             team_id=winning_team.id,
             player_id=player.id,
-            bought_price=auction.current_bid
+            bought_price=sold_price
         )
         db.add(team_player)
 
-        # Update team budget
-        winning_team.remaining_budget -= auction.current_bid
+        winning_team.remaining_budget -= sold_price
 
-        # Reset auction
         auction.status = "waiting"
         auction.current_player_id = None
         auction.current_bid = 0
@@ -180,7 +165,7 @@ async def mark_sold(
         "message": "Player sold",
         "player": player.name,
         "team": winning_team.name,
-        "price": auction.current_bid
+        "price": sold_price
     }
 
 
@@ -285,7 +270,6 @@ async def get_auction_state(db: Session = Depends(get_db)):
             "amount": auction.current_bid
         }
 
-    # Get last 10 bids
     bids = db.query(Bid).filter(Bid.auction_id == auction.id)\
         .order_by(Bid.timestamp.desc()).limit(10).all()
     bids_history = []
@@ -301,24 +285,31 @@ async def get_auction_state(db: Session = Depends(get_db)):
             "timestamp": bid.timestamp
         })
 
-    # Get all teams with remaining budget
-    teams = db.query(Team).all()
+    teams = db.query(Team).filter(Team.auction_id == auction.id).all()
     teams_list = []
     for team in teams:
         teams_list.append({
             "id": team.id,
             "name": team.name,
+            "short_name": team.short_name,
             "remaining_budget": team.remaining_budget
         })
+
+    # Count players by status for this auction
+    sold_count = db.query(Player).filter(Player.auction_id == auction.id, Player.status == "sold").count()
+    unsold_count = db.query(Player).filter(Player.auction_id == auction.id, Player.status == "unsold").count()
 
     return AuctionStateResponse(
         current_auction={
             "id": auction.id,
+            "name": auction.name,
             "status": auction.status,
             "current_player_id": auction.current_player_id,
             "current_bid": auction.current_bid,
             "current_team_id": auction.current_team_id,
-            "timer_seconds": auction.timer_seconds
+            "timer_seconds": auction.timer_seconds,
+            "sold_count": sold_count,
+            "unsold_count": unsold_count
         },
         current_player=current_player,
         highest_bid=highest_bid,
@@ -329,7 +320,6 @@ async def get_auction_state(db: Session = Depends(get_db)):
 
 @router.get("/history")
 async def get_auction_history(db: Session = Depends(get_db)):
-    # Get all sold players via TeamPlayer
     team_players = db.query(TeamPlayer).all()
     history = []
     for tp in team_players:
@@ -340,7 +330,7 @@ async def get_auction_history(db: Session = Depends(get_db)):
                 "player": player.name,
                 "team": team.name,
                 "price": tp.bought_price,
-                "timestamp": tp.id  # No timestamp in TeamPlayer, use id as placeholder
+                "timestamp": tp.id
             })
 
     return history

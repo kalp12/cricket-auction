@@ -3,8 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from auth.auth import (
     ADMIN_USERNAME,
-    ADMIN_PASSWORD,
+    ADMIN_PASSWORD_HASH,
     get_current_user,
+    pwd_context,
 )
 from schemas.auth import (
     LoginRequest,
@@ -22,7 +23,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     Accepts OAuth2PasswordRequestForm with username and password fields.
     """
     # Check against admin credentials from .env
-    if form_data.username != ADMIN_USERNAME or not form_data.password == ADMIN_PASSWORD:
+    if form_data.username != ADMIN_USERNAME:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not pwd_context.verify(form_data.password, ADMIN_PASSWORD_HASH):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

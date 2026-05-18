@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from auth.auth import get_current_user
-from models.models import Team, TeamPlayer, Player
+from models.models import Team, TeamPlayer, Player, Auction
 from schemas.team import TeamCreate, TeamUpdate, TeamResponse, TeamDetailResponse
 
 router = APIRouter(tags=["teams"])
@@ -12,6 +12,10 @@ router = APIRouter(tags=["teams"])
 
 @router.post("", response_model=TeamResponse)
 async def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verify auction exists
+    auction = db.query(Auction).filter(Auction.id == team.auction_id).first()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
     team_dict = team.dict()
     team_dict["remaining_budget"] = team_dict["total_budget"]
     db_team = Team(**team_dict)
@@ -22,8 +26,12 @@ async def create_team(team: TeamCreate, db: Session = Depends(get_db), current_u
 
 
 @router.get("", response_model=List[TeamResponse])
-async def get_teams(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    teams = db.query(Team).all()
+async def get_teams(
+    auction_id: int = Query(..., description="Filter by auction"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    teams = db.query(Team).filter(Team.auction_id == auction_id).all()
     return teams
 
 
@@ -33,7 +41,6 @@ async def get_team(team_id: int, db: Session = Depends(get_db), current_user: di
     if not team:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
 
-    # Get players bought by this team
     team_players = db.query(TeamPlayer).filter(TeamPlayer.team_id == team_id).all()
     players_list = []
     for tp in team_players:
@@ -49,7 +56,9 @@ async def get_team(team_id: int, db: Session = Depends(get_db), current_user: di
 
     return TeamDetailResponse(
         id=team.id,
+        auction_id=team.auction_id,
         name=team.name,
+        short_name=team.short_name,
         total_budget=team.total_budget,
         remaining_budget=team.remaining_budget,
         max_players=team.max_players,

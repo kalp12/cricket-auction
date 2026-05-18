@@ -9,13 +9,15 @@ class Player(Base):
     __tablename__ = "players"
 
     id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
     name = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # batsman/bowler/allrounder/wicketkeeper
+    role = Column(String, nullable=False) # batsman/bowler/allrounder/wicketkeeper
     country = Column(String, nullable=False)
     base_price = Column(Float, nullable=False)
     image_url = Column(String, nullable=True)
-    status = Column(String, default="unsold")  # unsold/sold/pending
+    status = Column(String, default="unsold") # unsold/sold/pending
 
+    auction = relationship("Auction", foreign_keys=[auction_id])
     bids = relationship("Bid", back_populates="player")
 
 
@@ -23,12 +25,15 @@ class Team(Base):
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
     name = Column(String, nullable=False)
+    short_name = Column(String, nullable=True)
     total_budget = Column(Float, nullable=False)
     remaining_budget = Column(Float, nullable=False)
-    max_players = Column(Integer, default=15)
+    max_players = Column(Integer, default=18)
     logo_url = Column(String, nullable=True)
 
+    auction = relationship("Auction", foreign_keys=[auction_id])
     bids = relationship("Bid", back_populates="team")
 
 
@@ -48,14 +53,22 @@ class Auction(Base):
     __tablename__ = "auctions"
 
     id = Column(Integer, primary_key=True, index=True)
-    status = Column(String, default="waiting")  # waiting/live/paused/ended
+    name = Column(String, default="Untitled Auction")
+    status = Column(String, default="waiting") # waiting/live/paused/ended
     current_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     current_bid = Column(Float, default=0)
     current_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     timer_seconds = Column(Integer, default=60)
+    timer_enabled = Column(Integer, default=1) # 1=on, 0=off
+    base_bid = Column(Float, default=1000000) # 10 lakh default
+    budget_per_team = Column(Float, default=100000000) # 100 crore
+    min_players = Column(Integer, default=5)
+    max_players = Column(Integer, default=18)
 
-    current_player = relationship("Player", backref="auctions")
-    current_team = relationship("Team", backref="current_auctions")
+    current_player = relationship("Player", foreign_keys=[current_player_id])
+    current_team = relationship("Team", foreign_keys=[current_team_id])
+    players = relationship("Player", foreign_keys="[Player.auction_id]", overlaps="auction")
+    teams = relationship("Team", foreign_keys="[Team.auction_id]", overlaps="auction")
     bids = relationship("Bid", back_populates="auction")
 
 

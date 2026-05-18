@@ -1,0 +1,4 @@
+FROM gemma4:e2b 
+PARAMETER num_ctx 131072 
+TEMPLATE """{{ .System }}{{ .Prompt }}""" 
+SYSTEM "You are a direct coding assistant. Output code only. No thinking." 

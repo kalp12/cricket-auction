@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from db.database import get_db
@@ -12,6 +12,10 @@ router = APIRouter(tags=["players"])
 
 @router.post("", response_model=PlayerResponse)
 async def create_player(player: PlayerCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    # Verify auction exists
+    auction = db.query(Auction).filter(Auction.id == player.auction_id).first()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
     player_dict = player.dict()
     db_player = Player(**player_dict)
     db.add(db_player)
@@ -22,6 +26,7 @@ async def create_player(player: PlayerCreate, db: Session = Depends(get_db), cur
 
 @router.get("", response_model=PlayerListResponse)
 async def get_players(
+    auction_id: int = Query(..., description="Filter by auction"),
     role: Optional[str] = None,
     status: Optional[str] = None,
     skip: int = Query(0, ge=0),
@@ -29,7 +34,7 @@ async def get_players(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    query = db.query(Player)
+    query = db.query(Player).filter(Player.auction_id == auction_id)
     if role:
         query = query.filter(Player.role == role)
     if status:
@@ -39,7 +44,7 @@ async def get_players(
 
 
 @router.get("/{player_id}", response_model=PlayerResponse)
-async def get_player( player_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def get_player(player_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")

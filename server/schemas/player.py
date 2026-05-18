@@ -3,8 +3,9 @@ from typing import Optional, List
 
 
 class PlayerCreate(BaseModel):
+    auction_id: int
     name: str
-    role: str  # batsman/bowler/allrounder/wicketkeeper
+    role: str # batsman/bowler/allrounder/wicketkeeper
     country: str
     base_price: float
     image_url: Optional[str] = None
@@ -21,6 +22,7 @@ class PlayerUpdate(BaseModel):
 
 class PlayerResponse(BaseModel):
     id: int
+    auction_id: int
     name: str
     role: str
     country: str
