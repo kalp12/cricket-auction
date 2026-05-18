@@ -2,7 +2,8 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from db.database import engine, Base
+from db.database import engine, Base, SessionLocal
+from sqlalchemy import text
 from routes.auth import router as auth_router
 from routes.player import router as player_router
 from routes.team import router as team_router
@@ -27,6 +28,34 @@ app.add_middleware(
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
+
+# Migrate: add missing columns to existing tables
+def run_migrations():
+    migrations = [
+        ("auctions", "image_url", "ALTER TABLE auctions ADD COLUMN image_url VARCHAR"),
+        ("bid_increment_slabs", "id", None),  # table is new, create_all handles it
+    ]
+    db = SessionLocal()
+    try:
+        for table, column, alter_sql in migrations:
+            if alter_sql is None:
+                continue
+            # Check if column already exists
+            result = db.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                f"WHERE table_name = '{table}' AND column_name = '{column}'"
+            ))
+            if result.fetchone() is None:
+                db.execute(text(alter_sql))
+                db.commit()
+                print(f"Migration: added {column} to {table}")
+    except Exception as e:
+        print(f"Migration error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+run_migrations()
 
 # Serve uploaded files
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
