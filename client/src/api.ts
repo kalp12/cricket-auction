@@ -55,20 +55,20 @@ export const startAuction = async (player_id: number, timer_seconds = 60) =>
 export const placeBid = async (team_id: number, amount: number) =>
   (await axios.post(`${BASE}/api/auction/bid`, { team_id, amount }, { headers: headers() })).data
 
-export const soldPlayer = async () =>
-  (await axios.post(`${BASE}/api/auction/sold`, {}, { headers: headers() })).data
+export const soldPlayer = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/sold`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
-export const unsoldPlayer = async () =>
-  (await axios.post(`${BASE}/api/auction/unsold`, {}, { headers: headers() })).data
+export const unsoldPlayer = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/unsold`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
-export const pauseAuction = async () =>
-  (await axios.post(`${BASE}/api/auction/pause`, {}, { headers: headers() })).data
+export const pauseAuction = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/pause`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
-export const resumeAuction = async () =>
-  (await axios.post(`${BASE}/api/auction/resume`, {}, { headers: headers() })).data
+export const resumeAuction = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/resume`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
-export const getAuctionHistory = async () =>
-  (await axios.get(`${BASE}/api/auction/history`, { headers: headers() })).data
+export const getAuctionHistory = async (auctionId?: number) =>
+  (await axios.get(`${BASE}/api/auction/history`, { params: { auction_id: auctionId }, headers: headers() })).data
 
 // ── Players (scoped to auction) ───────────────────────
 export const getPlayers = async (auctionId: number, params?: { role?: string; status?: string }) =>

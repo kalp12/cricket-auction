@@ -210,7 +210,7 @@ export default function AuctionLive() {
   const handleSold = async () => {
     if (!auctionId) return
     try {
-      const res = await soldPlayer()
+      const res = await soldPlayer(Number(auctionId))
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
@@ -223,7 +223,7 @@ export default function AuctionLive() {
   const handleUnsold = async () => {
     if (!auctionId) return
     try {
-      const res = await unsoldPlayer()
+      const res = await unsoldPlayer(Number(auctionId))
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
@@ -236,7 +236,7 @@ export default function AuctionLive() {
   const handlePause = async () => {
     if (!auctionId) return
     try {
-      await pauseAuction()
+      await pauseAuction(Number(auctionId))
       setStatus('paused')
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
@@ -246,7 +246,7 @@ export default function AuctionLive() {
   const handleResume = async () => {
     if (!auctionId) return
     try {
-      await resumeAuction()
+      await resumeAuction(Number(auctionId))
       setStatus('live')
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')

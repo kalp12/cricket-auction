@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -25,19 +25,9 @@ async def start_auction(
     if player.status != "unsold":
         raise HTTPException(status_code=400, detail="Player is not available for auction")
 
-    live_auction = db.query(Auction).filter(Auction.status == "live").first()
-    if live_auction:
-        raise HTTPException(status_code=400, detail="Another auction is already live")
-
     auction = db.query(Auction).filter(Auction.id == player.auction_id).first()
     if not auction:
         raise HTTPException(status_code=404, detail="Auction not found")
-
-    auction.status = "waiting"
-    auction.current_player_id = None
-    auction.current_bid = 0
-    auction.current_team_id = None
-    auction.timer_seconds = timer_seconds
 
     auction.current_player_id = player_id
     auction.current_bid = player.base_price
@@ -62,12 +52,19 @@ async def start_auction(
 @router.post("/bid")
 async def place_bid(
     bid_data: BidCreate,
+    auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    auction = db.query(Auction).filter(Auction.status == "live").first()
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "live").first()
+
     if not auction:
         raise HTTPException(status_code=400, detail="No live auction")
+    if auction.status != "live":
+        raise HTTPException(status_code=400, detail="Auction is not live")
 
     if bid_data.amount <= auction.current_bid:
         raise HTTPException(status_code=400, detail="Bid must be higher than current bid")
@@ -76,7 +73,6 @@ async def place_bid(
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    # Verify team belongs to this auction
     if team.auction_id != auction.id:
         raise HTTPException(status_code=400, detail="Team does not belong to this auction")
 
@@ -123,12 +119,19 @@ async def place_bid(
 
 @router.post("/sold")
 async def mark_sold(
+    auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    auction = db.query(Auction).filter(Auction.status == "live").first()
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "live").first()
+
     if not auction:
         raise HTTPException(status_code=400, detail="No live auction")
+    if auction.status != "live":
+        raise HTTPException(status_code=400, detail=f"Auction is not live (status={auction.status})")
 
     if not auction.current_team_id:
         raise HTTPException(status_code=400, detail="No bids placed yet")
@@ -162,9 +165,7 @@ async def mark_sold(
             auction.current_player_id = next_p.id
             auction.current_bid = next_p.base_price
             auction.current_team_id = None
-            # Keep auction live
         else:
-            # No more players — end the auction
             auction.status = "ended"
             auction.current_player_id = None
             auction.current_bid = 0
@@ -206,12 +207,19 @@ async def mark_sold(
 
 @router.post("/unsold")
 async def mark_unsold(
+    auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    auction = db.query(Auction).filter(Auction.status == "live").first()
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "live").first()
+
     if not auction:
         raise HTTPException(status_code=400, detail="No live auction")
+    if auction.status != "live":
+        raise HTTPException(status_code=400, detail=f"Auction is not live (status={auction.status})")
 
     player = db.query(Player).filter(Player.id == auction.current_player_id).first()
     if not player:
@@ -219,7 +227,7 @@ async def mark_unsold(
 
     player.status = "unsold"
 
-    # Auto-advance to next unsold player (skip the current one since it's still unsold)
+    # Auto-advance to next unsold player (skip the current one)
     next_p = db.query(Player).filter(
         Player.auction_id == auction.id,
         Player.status == "unsold",
@@ -230,9 +238,7 @@ async def mark_unsold(
         auction.current_player_id = next_p.id
         auction.current_bid = next_p.base_price
         auction.current_team_id = None
-        # Keep auction live
     else:
-        # No more unsold players
         auction.status = "ended"
         auction.current_player_id = None
         auction.current_bid = 0
@@ -266,16 +272,31 @@ async def mark_unsold(
 
 @router.post("/pause")
 async def pause_auction(
+    auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    auction = db.query(Auction).filter(Auction.status == "live").first()
-    if not auction:
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "live").first()
+
+    if not auction or auction.status != "live":
         raise HTTPException(status_code=400, detail="No live auction")
 
     auction.status = "paused"
     db.commit()
     db.refresh(auction)
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "state",
+        "auction_id": auction.id,
+        "status": auction.status,
+        "current_bid": auction.current_bid,
+        "current_player_id": auction.current_player_id,
+        "current_team_id": auction.current_team_id,
+        "timer_seconds": auction.timer_seconds,
+    })
 
     return AuctionResponse(
         id=auction.id,
@@ -291,16 +312,31 @@ async def pause_auction(
 
 @router.post("/resume")
 async def resume_auction(
+    auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    auction = db.query(Auction).filter(Auction.status == "paused").first()
-    if not auction:
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "paused").first()
+
+    if not auction or auction.status != "paused":
         raise HTTPException(status_code=400, detail="No paused auction")
 
     auction.status = "live"
     db.commit()
     db.refresh(auction)
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "state",
+        "auction_id": auction.id,
+        "status": auction.status,
+        "current_bid": auction.current_bid,
+        "current_player_id": auction.current_player_id,
+        "current_team_id": auction.current_team_id,
+        "timer_seconds": auction.timer_seconds,
+    })
 
     return AuctionResponse(
         id=auction.id,
@@ -315,8 +351,15 @@ async def resume_auction(
 
 
 @router.get("/state", response_model=AuctionStateResponse)
-async def get_auction_state(db: Session = Depends(get_db)):
-    auction = db.query(Auction).first()
+async def get_auction_state(
+    auction_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).first()
+
     if not auction:
         raise HTTPException(status_code=404, detail="No auction exists")
 
@@ -366,7 +409,6 @@ async def get_auction_state(db: Session = Depends(get_db)):
             "remaining_budget": team.remaining_budget
         })
 
-    # Count players by status for this auction
     sold_count = db.query(Player).filter(Player.auction_id == auction.id, Player.status == "sold").count()
     unsold_count = db.query(Player).filter(Player.auction_id == auction.id, Player.status == "unsold").count()
 
@@ -390,8 +432,15 @@ async def get_auction_state(db: Session = Depends(get_db)):
 
 
 @router.get("/history")
-async def get_auction_history(db: Session = Depends(get_db)):
-    team_players = db.query(TeamPlayer).all()
+async def get_auction_history(
+    auction_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    if auction_id:
+        team_players = db.query(TeamPlayer).join(Team).filter(Team.auction_id == auction_id).all()
+    else:
+        team_players = db.query(TeamPlayer).all()
+
     history = []
     for tp in team_players:
         player = db.query(Player).filter(Player.id == tp.player_id).first()
