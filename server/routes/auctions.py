@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+import random
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from db.database import get_db
 from models.models import Auction, Player
@@ -86,8 +87,8 @@ def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: 
 
 
 @router.post("/{auction_id}/next-player", status_code=status.HTTP_200_OK)
-def next_player(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    """Move to next player in auction (admin only)"""
+def next_player(auction_id: int, random_select: bool = Query(True), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Move to next player in auction. Default: random selection. Use random_select=false for sequential."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
         raise HTTPException(status_code=404, detail="Auction not found")
@@ -96,14 +97,11 @@ def next_player(auction_id: int, db: Session = Depends(get_db), current_user: di
         raise HTTPException(status_code=400, detail="Auction not in progress")
 
     # If there's a current player still unsold, skip it
+    exclude_id = None
     if db_auction.current_player_id:
         current = db.query(Player).filter(Player.id == db_auction.current_player_id).first()
         if current and current.status == "unsold":
             exclude_id = current.id
-        else:
-            exclude_id = None
-    else:
-        exclude_id = None
 
     query = db.query(Player).filter(
         Player.auction_id == auction_id,
@@ -112,12 +110,18 @@ def next_player(auction_id: int, db: Session = Depends(get_db), current_user: di
     if exclude_id:
         query = query.filter(Player.id != exclude_id)
 
-    next_p = query.order_by(Player.id).first()
+    candidates = query.all()
 
-    if not next_p:
+    if not candidates:
         db_auction.status = "ended"
         db.commit()
         return {"message": "No more players. Auction ended."}
+
+    # Pick random or sequential
+    if random_select:
+        next_p = random.choice(candidates)
+    else:
+        next_p = candidates[0]
 
     db_auction.current_player_id = next_p.id
     db_auction.current_bid = next_p.base_price

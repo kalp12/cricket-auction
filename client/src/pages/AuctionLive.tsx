@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard } from 'lucide-react'
+import { ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard, Shuffle } from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction } from '../api'
 
 interface Team {
@@ -43,6 +43,36 @@ const getTeamKey = (team: Team): string => {
   return team.name[0].toUpperCase()
 }
 
+// Circular progress timer component
+function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: number }) {
+  const radius = 58
+  const stroke = 6
+  const circumference = 2 * Math.PI * radius
+  const progress = maxSeconds > 0 ? seconds / maxSeconds : 0
+  const offset = circumference * (1 - progress)
+
+  const color = seconds <= 5 ? '#ef4444' : seconds <= 10 ? '#f59e0b' : '#3b82f6'
+
+  return (
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 128 128">
+        <circle cx="64" cy="64" r={radius} fill="none" stroke="#1f2937" strokeWidth={stroke} />
+        <circle
+          cx="64" cy="64" r={radius} fill="none"
+          stroke={color} strokeWidth={stroke}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-linear"
+        />
+      </svg>
+      <div className={`text-4xl font-mono font-bold ${seconds <= 5 ? 'text-red-400 animate-pulse' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
+        {seconds}
+      </div>
+    </div>
+  )
+}
+
 export default function AuctionLive() {
   const { auctionId } = useParams<{ auctionId: string }>()
   const navigate = useNavigate()
@@ -56,10 +86,47 @@ export default function AuctionLive() {
   const [currentBid, setCurrentBid] = useState(0)
   const [currentTeamId, setCurrentTeamId] = useState<number | null>(null)
   const [currentPlayer, setCurrentPlayer] = useState<any>(null)
-  const [timer, setTimer] = useState(0)
   const [status, setStatus] = useState('waiting')
   const [error, setError] = useState('')
   const [showShortcuts, setShowShortcuts] = useState(true)
+
+  // Timer state — using refs for smooth countdown
+  const timerValue = useRef(0)
+  const timerMax = useRef(30)
+  const [, forceUpdate] = useState(0)
+  const timerInterval = useRef<NodeJS.Timeout | null>(null)
+
+  const setTimer = useCallback((seconds: number) => {
+    timerValue.current = seconds
+    timerMax.current = seconds
+    forceUpdate(n => n + 1)
+  }, [])
+
+  const startCountdown = useCallback(() => {
+    if (timerInterval.current) clearInterval(timerInterval.current)
+    timerInterval.current = setInterval(() => {
+      if (timerValue.current > 0) {
+        timerValue.current -= 1
+        forceUpdate(n => n + 1)
+      } else {
+        // Timer expired — stop countdown
+        if (timerInterval.current) clearInterval(timerInterval.current)
+        timerInterval.current = null
+      }
+    }, 1000)
+  }, [])
+
+  const stopCountdown = useCallback(() => {
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current)
+      timerInterval.current = null
+    }
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { stopCountdown() }
+  }, [stopCountdown])
 
   // Build a map of shortcut key -> team
   const keyMap = useRef<Record<string, Team>>({})
@@ -70,7 +137,6 @@ export default function AuctionLive() {
     for (const team of teamsList) {
       let key = getTeamKey(team)
       if (usedKeys.has(key)) {
-        // Try second letter of name
         for (const ch of team.name.toUpperCase()) {
           if (!usedKeys.has(ch) && /[A-Z]/.test(ch)) {
             key = ch
@@ -101,7 +167,6 @@ export default function AuctionLive() {
       setCurrentBid(auctionData.current_bid)
       setCurrentTeamId(auctionData.current_team_id)
       setStatus(auctionData.status)
-      setTimer(auctionData.timer_seconds)
 
       // Find current player
       if (auctionData.current_player_id) {
@@ -128,7 +193,10 @@ export default function AuctionLive() {
       if (msg.type === 'bid_update') {
         setCurrentBid(msg.amount)
         setCurrentTeamId(msg.team_id)
-        setTimer(msg.timer_seconds)
+        // Reset timer on each bid
+        const newTimer = msg.timer_seconds || 30
+        setTimer(newTimer)
+        startCountdown()
         setBidEvents(prev => [{
           team_name: msg.team_name,
           team_short: msg.team_name?.substring(0, 3).toUpperCase() || '',
@@ -138,41 +206,48 @@ export default function AuctionLive() {
         setBidEvents([])
         setCurrentBid(msg.current_bid || 0)
         setStatus(msg.status || 'live')
+        // Reset timer for next player
+        if (msg.status === 'live' && msg.current_player_id) {
+          const newTimer = auction?.timer_seconds || 30
+          setTimer(newTimer)
+          startCountdown()
+        } else {
+          stopCountdown()
+          timerValue.current = 0
+        }
         fetchData()
       } else if (msg.type === 'state') {
         setCurrentBid(msg.current_bid)
         setCurrentTeamId(msg.current_team_id)
-        setTimer(msg.timer_seconds)
         setStatus(msg.status)
+        if (msg.timer_seconds && msg.status === 'live') {
+          setTimer(msg.timer_seconds)
+        }
         fetchData()
       }
     }
 
-    return () => { ws.close() }
-  }, [auctionId, fetchData])
+    return () => { ws.close(); stopCountdown() }
+  }, [auctionId, fetchData, setTimer, startCountdown, stopCountdown, auction?.timer_seconds])
 
-  // Timer countdown
+  // Start countdown when auction goes live
   useEffect(() => {
-    if (status !== 'live' || timer <= 0) return
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        if (prev <= 1) return 0
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [status, timer])
+    if (status === 'live' && auction?.timer_enabled && timerValue.current > 0 && !timerInterval.current) {
+      startCountdown()
+    }
+    if (status !== 'live') {
+      stopCountdown()
+    }
+  }, [status, auction?.timer_enabled, startCountdown, stopCountdown])
 
   // Keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger in inputs
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
 
       const key = e.key.toUpperCase()
       const team = keyMap.current[key]
       if (team && status === 'live' && wsRef.current?.readyState === WebSocket.OPEN) {
-        const nextAmount = getNextBid(currentBid, slabs)
         wsRef.current.send(JSON.stringify({
           type: 'bid',
           team_id: team.id,
@@ -184,7 +259,7 @@ export default function AuctionLive() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentBid, slabs, status])
+  }, [status])
 
   // Actions
   const handleStart = async () => {
@@ -201,6 +276,10 @@ export default function AuctionLive() {
     if (!auctionId) return
     try {
       await nextPlayer(Number(auctionId))
+      setBidEvents([])
+      const newTimer = auction?.timer_seconds || 30
+      setTimer(newTimer)
+      startCountdown()
       await fetchData()
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
@@ -214,6 +293,14 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
+      if (res.status === 'live') {
+        const newTimer = auction?.timer_seconds || 30
+        setTimer(newTimer)
+        startCountdown()
+      } else {
+        stopCountdown()
+        timerValue.current = 0
+      }
       await fetchData()
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
@@ -227,6 +314,14 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
+      if (res.status === 'live') {
+        const newTimer = auction?.timer_seconds || 30
+        setTimer(newTimer)
+        startCountdown()
+      } else {
+        stopCountdown()
+        timerValue.current = 0
+      }
       await fetchData()
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
@@ -237,6 +332,7 @@ export default function AuctionLive() {
     if (!auctionId) return
     try {
       await pauseAuction(Number(auctionId))
+      stopCountdown()
       setStatus('paused')
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
@@ -248,6 +344,13 @@ export default function AuctionLive() {
     try {
       await resumeAuction(Number(auctionId))
       setStatus('live')
+      if (auction?.timer_enabled && timerValue.current > 0) {
+        startCountdown()
+      } else {
+        const newTimer = auction?.timer_seconds || 30
+        setTimer(newTimer)
+        startCountdown()
+      }
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed')
     }
@@ -257,9 +360,11 @@ export default function AuctionLive() {
   const soldCount = allPlayers.filter(p => p.status === 'sold').length
   const leadingTeam = teams.find(t => t.id === currentTeamId)
   const nextBidAmount = currentBid > 0 ? getNextBid(currentBid, slabs) : (currentPlayer?.base_price || auction?.base_bid || 0)
+  const currentTimerValue = timerValue.current
+  const currentTimerMax = timerMax.current
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white" onKeyDown={e => e.key}>
+    <div className="min-h-screen bg-gray-950 text-white">
       {/* Top Bar */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -321,8 +426,8 @@ export default function AuctionLive() {
                 </div>
                 {/* Timer */}
                 {auction?.timer_enabled && status === 'live' && (
-                  <div className={`mt-6 text-4xl font-mono font-bold ${timer <= 10 ? 'text-red-400 animate-pulse' : 'text-blue-400'}`}>
-                    {timer}s
+                  <div className="mt-6 flex justify-center">
+                    <TimerCircle seconds={currentTimerValue} maxSeconds={currentTimerMax} />
                   </div>
                 )}
               </div>
@@ -330,7 +435,7 @@ export default function AuctionLive() {
               <div className="text-center">
                 <div className="text-gray-500 text-xl mb-4">No player selected</div>
                 <button onClick={handleNextPlayer} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto">
-                  <SkipForward className="w-5 h-5" /> Next Player
+                  <Shuffle className="w-5 h-5" /> Random Player
                 </button>
               </div>
             ) : (
@@ -347,7 +452,7 @@ export default function AuctionLive() {
           {status === 'live' && currentPlayer && (
             <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3">
               <button onClick={handleNextPlayer} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm">
-                <SkipForward className="w-4 h-4" /> Skip
+                <Shuffle className="w-4 h-4" /> Next
               </button>
               <button onClick={handleSold} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2">
                 <Check className="w-4 h-4" /> SOLD

@@ -8,6 +8,7 @@ from typing import Dict, List
 
 router = APIRouter()
 
+
 class ConnectionManager:
     def __init__(self):
         self.connections: Dict[int, List[WebSocket]] = {}
@@ -35,7 +36,9 @@ class ConnectionManager:
         for ws in dead:
             self.connections[auction_id].remove(ws)
 
+
 manager = ConnectionManager()
+
 
 @router.websocket("/ws/auction/{auction_id}")
 async def websocket_endpoint(
@@ -113,7 +116,7 @@ async def websocket_endpoint(
 
                 if amount <= auction.current_bid:
                     await websocket.send_text(json.dumps(
-                        {"type": "error", "message": 
+                        {"type": "error", "message":
                          f"Bid must exceed current bid of {auction.current_bid}"}
                     ))
                     continue
@@ -133,7 +136,9 @@ async def websocket_endpoint(
                 db.add(bid)
                 auction.current_bid = amount
                 auction.current_team_id = team_id
-                auction.timer_seconds = 30
+                # Reset timer to auction's configured duration
+                timer_val = auction.timer_seconds if auction.timer_enabled else 30
+                auction.timer_seconds = timer_val
                 db.commit()
 
                 await manager.broadcast(auction_id, {
@@ -141,7 +146,7 @@ async def websocket_endpoint(
                     "team_id": team_id,
                     "team_name": team.name,
                     "amount": amount,
-                    "timer_seconds": 30
+                    "timer_seconds": timer_val
                 })
 
             elif msg.get("type") == "ping":
