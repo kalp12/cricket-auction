@@ -7,33 +7,16 @@ import {
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
+import { Button, Card, Input, RoleBadge, StatusBadge } from '../components/ui'
 import { getPlayers, createPlayer, updatePlayer, deletePlayer } from '../api'
 
 const roles = ['all', 'batsman', 'bowler', 'allrounder', 'wicketkeeper']
 const statuses = ['all', 'unsold', 'sold', 'pending']
 
-const roleBadge: Record<string, string> = {
-  batsman: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  bowler: 'bg-red-500/20 text-red-400 border-red-500/30',
-  allrounder: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  wicketkeeper: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-}
-
-const statusBadge: Record<string, string> = {
-  sold: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  unsold: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-  pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-}
-
 const StatusIcon: Record<string, any> = {
   unsold: UserX,
   sold: UserCheck,
   pending: Clock,
-}
-
-const roleLabel = (r: string) => {
-  const map: Record<string, string> = { batsman: 'BAT', bowler: 'BOWL', allrounder: 'AR', wicketkeeper: 'WK' }
-  return map[r] || r.toUpperCase()
 }
 
 const emptyForm = {
@@ -126,55 +109,32 @@ export default function Players() {
     <div className="p-12 text-gray-500 text-center animate-fade-in">Loading players...</div>
   )
 
+  const selectCls = 'w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm appearance-none cursor-pointer'
+
   return (
     <>
     <div className="animate-fade-in relative noise-bg">
       <div className="relative z-10">
-        {/* Breadcrumb */}
         <nav className="text-xs mb-6 flex items-center gap-2 tracking-wider">
-          <span
-            className="text-gray-500 hover:text-gray-300 cursor-pointer transition-colors"
-            onClick={() => navigate('/auctions')}
-          >
-            HOME
-          </span>
+          <span className="text-gray-500 hover:text-gray-300 cursor-pointer transition-colors" onClick={() => navigate('/auctions')}>HOME</span>
           <span className="text-gray-600">›</span>
-          <span
-            className="text-gray-500 hover:text-gray-300 cursor-pointer transition-colors"
-            onClick={() => navigate('/auctions')}
-          >
-            AUCTIONS
-          </span>
+          <span className="text-gray-500 hover:text-gray-300 cursor-pointer transition-colors" onClick={() => navigate('/auctions')}>AUCTIONS</span>
           <span className="text-gray-600">›</span>
           <span className="text-accent-gold font-medium">PLAYERS</span>
         </nav>
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(`/auctions/${aid}`)}
-              className="p-2 rounded-lg bg-surface-2/80 border border-white/5 text-gray-400 hover:text-white hover:border-white/15 transition-all"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+            <Button variant="ghost" size="md" icon={<ArrowLeft className="w-5 h-5" />} onClick={() => navigate(`/auctions/${aid}`)} className="w-10 h-10 !px-0 !py-0" />
             <div>
               <h1 className="text-4xl font-display gradient-text tracking-wide">PLAYER MANAGEMENT</h1>
               <p className="text-sm text-gray-500 mt-1">{filtered.length} players in this auction</p>
             </div>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ ...emptyForm }) }}
-            className="flex items-center gap-2 bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold px-5 py-2.5 rounded-xl font-medium transition-colors border border-accent-gold/20"
-          >
-            <Plus className="w-4 h-4" />
-            Add Player
-          </motion.button>
+          <Button variant="gold" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ ...emptyForm }) }}
+            className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold !shadow-none border border-accent-gold/20">Add Player</Button>
         </div>
 
-        {/* Add/Edit Form */}
         <AnimatePresence>
           {showForm && (
             <motion.div
@@ -184,227 +144,101 @@ export default function Players() {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="overflow-hidden"
             >
-              <div className="glass-strong rounded-2xl p-6">
+              <Card>
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="font-display text-xl gradient-text tracking-wide">
                     {editId ? 'EDIT PLAYER' : 'NEW PLAYER'}
                   </h3>
-                  <button
-                    onClick={handleCancel}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                  >
+                  <button onClick={handleCancel} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-sm mb-5"
-                  >
-                    {error}
-                  </motion.div>
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-sm mb-5">{error}</motion.div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Basic Info Row */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1.5 block uppercase tracking-wider">Name *</label>
-                      <input
-                        type="text"
-                        value={form.name}
-                        onChange={e => setForm({ ...form, name: e.target.value })}
-                        placeholder="e.g. Virat Kohli"
-                        className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm"
-                      />
-                    </div>
+                    <Input label="Name *" placeholder="e.g. Virat Kohli" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                     <div>
                       <label className="text-xs text-gray-400 mb-1.5 block uppercase tracking-wider">Role</label>
-                      <select
-                        value={form.role}
-                        onChange={e => setForm({ ...form, role: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm appearance-none cursor-pointer"
-                      >
+                      <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className={selectCls}>
                         {roles.filter(r => r !== 'all').map(r => (
-                          <option key={r} value={r} className="bg-surface-2 text-white">
-                            {r.charAt(0).toUpperCase() + r.slice(1)}
-                          </option>
+                          <option key={r} value={r} className="bg-surface-2 text-white">{r.charAt(0).toUpperCase() + r.slice(1)}</option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1.5 block uppercase tracking-wider">Country</label>
-                      <input
-                        type="text"
-                        value={form.country}
-                        onChange={e => setForm({ ...form, country: e.target.value })}
-                        placeholder="e.g. India"
-                        className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1.5 block uppercase tracking-wider">Base Price</label>
-                      <input
-                        type="number"
-                        value={form.base_price}
-                        onChange={e => setForm({ ...form, base_price: Number(e.target.value) })}
-                        className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm"
-                      />
-                      <p className="text-xs text-accent-gold/70 mt-1 font-mono">{formatPrice(form.base_price)}</p>
-                    </div>
+                    <Input label="Country" placeholder="e.g. India" value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} />
+                    <Input label="Base Price" type="number" value={form.base_price} onChange={e => setForm({ ...form, base_price: Number(e.target.value) })} hint={formatPrice(form.base_price)} />
                   </div>
 
-                  {/* Image URL */}
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1.5 block uppercase tracking-wider">Image URL</label>
-                    <input
-                      type="text"
-                      value={form.image_url}
-                      onChange={e => setForm({ ...form, image_url: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm"
-                    />
-                  </div>
+                  <Input label="Image URL" placeholder="https://..." value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} />
 
-                  {/* Cricket Stats */}
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <span className="w-8 h-px bg-white/10" />
-                      Cricket Stats
-                      <span className="flex-1 h-px bg-white/5" />
+                      <span className="w-8 h-px bg-white/10" /> Cricket Stats <span className="flex-1 h-px bg-white/5" />
                     </p>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Matches</label>
-                        <input type="number" value={form.matches} onChange={e => setForm({ ...form, matches: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Runs</label>
-                        <input type="number" value={form.runs} onChange={e => setForm({ ...form, runs: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Wickets</label>
-                        <input type="number" value={form.wickets} onChange={e => setForm({ ...form, wickets: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Bat Avg</label>
-                        <input type="number" step="0.1" value={form.batting_avg} onChange={e => setForm({ ...form, batting_avg: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Bat SR</label>
-                        <input type="number" step="0.1" value={form.batting_sr} onChange={e => setForm({ ...form, batting_sr: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Bowl Avg</label>
-                        <input type="number" step="0.1" value={form.bowling_avg} onChange={e => setForm({ ...form, bowling_avg: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 mb-1 block">Econ</label>
-                        <input type="number" step="0.1" value={form.bowling_econ} onChange={e => setForm({ ...form, bowling_econ: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all" />
-                      </div>
+                      <Input label="Matches" labelClassName="text-[10px] text-gray-500" type="number" value={form.matches} onChange={e => setForm({ ...form, matches: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Runs" labelClassName="text-[10px] text-gray-500" type="number" value={form.runs} onChange={e => setForm({ ...form, runs: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Wickets" labelClassName="text-[10px] text-gray-500" type="number" value={form.wickets} onChange={e => setForm({ ...form, wickets: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Bat Avg" labelClassName="text-[10px] text-gray-500" type="number" step="0.1" value={form.batting_avg} onChange={e => setForm({ ...form, batting_avg: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Bat SR" labelClassName="text-[10px] text-gray-500" type="number" step="0.1" value={form.batting_sr} onChange={e => setForm({ ...form, batting_sr: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Bowl Avg" labelClassName="text-[10px] text-gray-500" type="number" step="0.1" value={form.bowling_avg} onChange={e => setForm({ ...form, bowling_avg: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
+                      <Input label="Econ" labelClassName="text-[10px] text-gray-500" type="number" step="0.1" value={form.bowling_econ} onChange={e => setForm({ ...form, bowling_econ: Number(e.target.value) })} className="!px-3 !py-2 !rounded-lg" />
                     </div>
                   </div>
 
-                  {/* Submit */}
                   <div className="flex items-center gap-3 pt-2">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      type="submit"
-                      disabled={saving}
-                      className="px-8 py-2.5 rounded-xl bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold font-medium border border-accent-gold/20 disabled:opacity-40 transition-all"
-                    >
+                    <Button variant="gold" type="submit" disabled={saving}
+                      className="bg-accent-gold/20 hover:bg-accent-gold/30 !text-accent-gold border border-accent-gold/20 !shadow-none">
                       {saving ? 'Saving...' : editId ? 'Update Player' : 'Add Player'}
-                    </motion.button>
-                    <button
-                      type="button"
-                      onClick={handleCancel}
-                      className="px-6 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 font-medium transition-all"
-                    >
-                      Cancel
-                    </button>
+                    </Button>
+                    <Button variant="ghost" type="button" onClick={handleCancel}>Cancel</Button>
                   </div>
                 </form>
-              </div>
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Filters */}
-        <div className="glass-strong rounded-2xl p-4 mb-6">
+        <Card padding="sm" className="mb-6">
           <div className="flex flex-wrap items-center gap-4">
             <div className="relative flex-1 min-w-[220px]">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name or country..."
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm"
-              />
+              <Input icon={<Search className="w-4 h-4" />} placeholder="Search by name or country..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-500" />
-              <select
-                value={roleFilter}
-                onChange={e => setRoleFilter(e.target.value)}
-                className="px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all appearance-none cursor-pointer"
-              >
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={selectCls}>
                 {roles.map(r => (
-                  <option key={r} value={r} className="bg-surface-2 text-white">
-                    {r === 'all' ? 'All Roles' : r.charAt(0).toUpperCase() + r.slice(1)}
-                  </option>
+                  <option key={r} value={r} className="bg-surface-2 text-white">{r === 'all' ? 'All Roles' : r.charAt(0).toUpperCase() + r.slice(1)}</option>
                 ))}
               </select>
             </div>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white text-sm focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all appearance-none cursor-pointer"
-            >
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectCls}>
               {statuses.map(s => (
-                <option key={s} value={s} className="bg-surface-2 text-white">
-                  {s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
-                </option>
+                <option key={s} value={s} className="bg-surface-2 text-white">{s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}</option>
               ))}
             </select>
-            <span className="text-xs text-gray-500 font-mono bg-surface-2/80 px-3 py-1.5 rounded-lg border border-white/5">
-              {filtered.length} players
-            </span>
+            <span className="text-xs text-gray-500 font-mono bg-surface-2/80 px-3 py-1.5 rounded-lg border border-white/5">{filtered.length} players</span>
           </div>
-        </div>
+        </Card>
 
-        {/* Player Table */}
         {filtered.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-strong rounded-2xl p-16 text-center"
-          >
-            <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center mx-auto mb-5">
-              <User className="w-8 h-8 text-gray-600" />
-            </div>
-            <p className="text-gray-400 mb-5">No players found. Add some or adjust filters.</p>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowForm(true)}
-              className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold px-6 py-2.5 rounded-xl font-medium transition-colors border border-accent-gold/20"
-            >
-              Add Player
-            </motion.button>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card padding="lg" className="text-center">
+              <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center mx-auto mb-5">
+                <User className="w-8 h-8 text-gray-600" />
+              </div>
+              <p className="text-gray-400 mb-5">No players found. Add some or adjust filters.</p>
+              <Button variant="gold" icon={<Plus className="w-4 h-4" />} onClick={() => setShowForm(true)}
+                className="bg-accent-gold/15 hover:bg-accent-gold/25 !text-accent-gold border border-accent-gold/20 !shadow-none">Add Player</Button>
+            </Card>
           </motion.div>
         ) : (
-          <div className="glass-strong rounded-2xl overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -438,21 +272,13 @@ export default function Players() {
                               </div>
                               <div>
                                 <span className="font-medium text-white text-sm">{player.name}</span>
-                                {player.image_url && (
-                                  <span className="block text-[10px] text-gray-600 mt-0.5">Has image</span>
-                                )}
+                                {player.image_url && <span className="block text-[10px] text-gray-600 mt-0.5">Has image</span>}
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5">
-                            <span className={`text-[11px] px-2.5 py-1 rounded-lg font-medium border ${roleBadge[player.role] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
-                              {roleLabel(player.role)}
-                            </span>
-                          </td>
+                          <td className="px-5 py-3.5"><RoleBadge role={player.role} /></td>
                           <td className="px-5 py-3.5 text-sm text-gray-400">{player.country}</td>
-                          <td className="px-5 py-3.5">
-                            <span className="text-sm font-mono text-white">{formatPrice(player.base_price)}</span>
-                          </td>
+                          <td className="px-5 py-3.5"><span className="text-sm font-mono text-white">{formatPrice(player.base_price)}</span></td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-3 text-[11px] text-gray-500 font-mono">
                               <span>{player.matches || 0}M</span>
@@ -461,29 +287,12 @@ export default function Players() {
                             </div>
                           </td>
                           <td className="px-5 py-3.5">
-                            <span className={`text-[11px] px-2.5 py-1 rounded-lg font-medium border flex items-center gap-1.5 w-fit ${statusBadge[player.status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
-                              <SIcon className="w-3 h-3" />
-                              {player.status}
-                            </span>
+                            <StatusBadge status={player.status} />
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => handleEdit(player)}
-                                className="p-2 rounded-lg hover:bg-white/10 text-gray-500 hover:text-accent-gold transition-colors"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </motion.button>
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => handleDelete(player.id)}
-                                className="p-2 rounded-lg hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </motion.button>
+                              <Button variant="ghost" size="sm" icon={<Pencil className="w-4 h-4" />} onClick={() => handleEdit(player)} className="w-8 h-8 !px-0 !py-0" />
+                              <Button variant="ghost" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => handleDelete(player.id)} className="w-8 h-8 !px-0 !py-0 hover:!text-rose-400 hover:!bg-rose-500/10" />
                             </div>
                           </td>
                         </motion.tr>
@@ -493,7 +302,7 @@ export default function Players() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>
@@ -507,6 +316,6 @@ export default function Players() {
       onConfirm={confirmState.onConfirm}
       onCancel={cancel}
     />
-  </>
+    </>
   )
 }
