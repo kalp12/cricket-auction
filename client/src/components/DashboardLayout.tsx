@@ -3,9 +3,9 @@ import Sidebar from './Sidebar'
 
 export default function DashboardLayout() {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-surface-0">
       <Sidebar />
-      <main className="ml-64 p-8">
+      <main className="ml-72 p-8 min-h-screen">
         <Outlet />
       </main>
     </div>

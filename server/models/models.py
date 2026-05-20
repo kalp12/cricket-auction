@@ -75,6 +75,12 @@ class Auction(Base):
     max_players = Column(Integer, default=18)
     image_url = Column(String, nullable=True)
 
+    # Sponsor corner logos
+    sponsor_tl = Column(String, nullable=True)  # top-left
+    sponsor_tr = Column(String, nullable=True)  # top-right
+    sponsor_bl = Column(String, nullable=True)  # bottom-left
+    sponsor_br = Column(String, nullable=True)  # bottom-right
+
     current_player = relationship("Player", foreign_keys=[current_player_id])
     current_team = relationship("Team", foreign_keys=[current_team_id])
     players = relationship("Player", foreign_keys="[Player.auction_id]", overlaps="auction")

@@ -13,3 +13,5 @@ server/venv/
 node_modules/
 server/uploads/
 .env
+.git
+.gitignore

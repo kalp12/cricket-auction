@@ -41,6 +41,10 @@ def run_migrations():
         ("players", "batting_sr", "ALTER TABLE players ADD COLUMN batting_sr FLOAT DEFAULT 0"),
         ("players", "bowling_avg", "ALTER TABLE players ADD COLUMN bowling_avg FLOAT DEFAULT 0"),
         ("players", "bowling_econ", "ALTER TABLE players ADD COLUMN bowling_econ FLOAT DEFAULT 0"),
+        ("auctions", "sponsor_tl", "ALTER TABLE auctions ADD COLUMN sponsor_tl VARCHAR"),
+        ("auctions", "sponsor_tr", "ALTER TABLE auctions ADD COLUMN sponsor_tr VARCHAR"),
+        ("auctions", "sponsor_bl", "ALTER TABLE auctions ADD COLUMN sponsor_bl VARCHAR"),
+        ("auctions", "sponsor_br", "ALTER TABLE auctions ADD COLUMN sponsor_br VARCHAR"),
     ]
     db = SessionLocal()
     try:

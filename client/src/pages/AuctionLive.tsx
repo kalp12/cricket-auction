@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard, Shuffle, Bell, BellOff } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
+import {
+  ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
+  Shuffle, Bell, BellOff, Gavel
+} from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction } from '../api'
 import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
 
@@ -45,6 +50,40 @@ const getTeamKey = (team: Team): string => {
   return team.name[0].toUpperCase()
 }
 
+// Fire confetti burst
+const fireConfetti = () => {
+  const duration = 1500
+  const end = Date.now() + duration
+
+  const frame = () => {
+    confetti({
+      particleCount: 4,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.8 },
+      colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'],
+    })
+    confetti({
+      particleCount: 4,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.8 },
+      colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'],
+    })
+    if (Date.now() < end) requestAnimationFrame(frame)
+  }
+  frame()
+
+  // Big center burst
+  confetti({
+    particleCount: 100,
+    spread: 100,
+    origin: { y: 0.6 },
+    colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'],
+    startVelocity: 45,
+  })
+}
+
 // Circular progress timer component
 function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: number }) {
   const radius = 58
@@ -58,7 +97,7 @@ function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: num
   return (
     <div className="relative w-32 h-32 flex items-center justify-center">
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 128 128">
-        <circle cx="64" cy="64" r={radius} fill="none" stroke="#1f2937" strokeWidth={stroke} />
+        <circle cx="64" cy="64" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
         <circle
           cx="64" cy="64" r={radius} fill="none"
           stroke={color} strokeWidth={stroke}
@@ -68,9 +107,65 @@ function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: num
           className="transition-all duration-1000 ease-linear"
         />
       </svg>
-      <div className={`text-4xl font-mono font-bold transition-all ${seconds <= 5 ? 'text-red-400 animate-count-urgent' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
+      <motion.div
+        key={seconds}
+        initial={{ scale: 1.3, opacity: 0.5 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.15 }}
+        className={`text-4xl font-mono font-bold ${seconds <= 5 ? 'text-red-400 animate-count-urgent' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}
+      >
         {seconds}
-      </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// Gavel component
+function GavelAnimation({ show }: { show: boolean }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.3, rotate: -30 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          exit={{ opacity: 0, scale: 0.5 }}
+          transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+          className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+        >
+          <motion.div
+            animate={{
+              rotate: [0, -30, 0, -15, 0, -8, 0],
+              y: [0, 8, 0, 4, 0, 2, 0],
+            }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="text-9xl"
+          >
+            <Gavel className="w-32 h-32 text-accent-gold drop-shadow-[0_0_40px_rgba(251,191,36,0.5)]" />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// Sponsor corner slot
+function SponsorSlot({ src, position }: { src?: string; position: string }) {
+  const posClasses: Record<string, string> = {
+    'top-left': 'top-4 left-4',
+    'top-right': 'top-4 right-4',
+    'bottom-left': 'bottom-4 left-4',
+    'bottom-right': 'bottom-4 right-4',
+  }
+
+  if (!src) return null
+
+  return (
+    <div className={`absolute ${posClasses[position]} sponsor-slot z-10`}>
+      <img
+        src={src.startsWith('http') ? src : `http://localhost:8000${src}`}
+        alt="Sponsor"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+      />
     </div>
   )
 }
@@ -94,9 +189,8 @@ export default function AuctionLive() {
   const [notificationsOn, setNotificationsOn] = useState(areNotificationsEnabled())
 
   // Animation state
-  const [flashEvent, setFlashEvent] = useState<'sold' | 'unsold' | null>(null)
-  const [bidBumpKey, setBidBumpKey] = useState(0)
-  const [playerKey, setPlayerKey] = useState(0)
+  const [soldOverlay, setSoldOverlay] = useState<'sold' | 'unsold' | null>(null)
+  const [showGavel, setShowGavel] = useState(false)
   const bidIdCounter = useRef(0)
 
   const currentPlayerRef = useRef(currentPlayer)
@@ -115,7 +209,7 @@ export default function AuctionLive() {
     }
   }
 
-  // Timer state — using refs for smooth countdown
+  // Timer state
   const timerValue = useRef(0)
   const timerMax = useRef(30)
   const [, forceUpdate] = useState(0)
@@ -134,7 +228,6 @@ export default function AuctionLive() {
         timerValue.current -= 1
         forceUpdate(n => n + 1)
       } else {
-        // Timer expired — stop countdown
         if (timerInterval.current) clearInterval(timerInterval.current)
         timerInterval.current = null
         notify('Timer Expired', `${currentPlayerRef.current?.name || 'Player'} — no more bids`, 'timer-expired')
@@ -149,12 +242,9 @@ export default function AuctionLive() {
     }
   }, [])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => { stopCountdown() }
-  }, [stopCountdown])
+  useEffect(() => { return () => { stopCountdown() } }, [stopCountdown])
 
-  // Build a map of shortcut key -> team
+  // Build shortcut key map
   const keyMap = useRef<Record<string, Team>>({})
 
   const buildKeyMap = useCallback((teamsList: Team[]) => {
@@ -164,10 +254,7 @@ export default function AuctionLive() {
       let key = getTeamKey(team)
       if (usedKeys.has(key)) {
         for (const ch of team.name.toUpperCase()) {
-          if (!usedKeys.has(ch) && /[A-Z]/.test(ch)) {
-            key = ch
-            break
-          }
+          if (!usedKeys.has(ch) && /[A-Z]/.test(ch)) { key = ch; break }
         }
       }
       usedKeys.add(key)
@@ -194,22 +281,23 @@ export default function AuctionLive() {
       setCurrentTeamId(auctionData.current_team_id)
       setStatus(auctionData.status)
 
-      // Find current player
       if (auctionData.current_player_id) {
         const p = (playersData.players || playersData).find((pl: any) => pl.id === auctionData.current_player_id)
         setCurrentPlayer(p || null)
-        setPlayerKey(k => k + 1)
       }
 
       buildKeyMap(teamsData)
-    } catch (e) {
-      console.error(e)
-    }
+    } catch (e) { console.error(e) }
   }, [auctionId, buildKeyMap])
 
-  const triggerFlash = (event: 'sold' | 'unsold') => {
-    setFlashEvent(event)
-    setTimeout(() => setFlashEvent(null), 1200)
+  const triggerSoldEffect = (eventType: 'sold' | 'unsold') => {
+    setSoldOverlay(eventType)
+    if (eventType === 'sold') {
+      fireConfetti()
+      setShowGavel(true)
+      setTimeout(() => setShowGavel(false), 2000)
+    }
+    setTimeout(() => setSoldOverlay(null), eventType === 'sold' ? 2500 : 1500)
   }
 
   // WebSocket connection
@@ -225,8 +313,6 @@ export default function AuctionLive() {
       if (msg.type === 'bid_update') {
         setCurrentBid(msg.amount)
         setCurrentTeamId(msg.team_id)
-        setBidBumpKey(k => k + 1)
-        // Reset timer on each bid
         const newTimer = msg.timer_seconds || 30
         setTimer(newTimer)
         startCountdown()
@@ -241,41 +327,29 @@ export default function AuctionLive() {
         setBidEvents([])
         setCurrentBid(msg.current_bid || 0)
         setStatus(msg.status || 'live')
-        triggerFlash('sold')
+        triggerSoldEffect('sold')
         notify('SOLD!', `${currentPlayerRef.current?.name || 'Player'} sold to ${msg.team_name || 'team'} for ${formatPrice(msg.amount || currentBid)}`, `sold-${currentPlayerRef.current?.id || Date.now()}`)
-        // Reset timer for next player
         if (msg.status === 'live' && msg.current_player_id) {
           const newTimer = auction?.timer_seconds || 30
-          setTimer(newTimer)
-          startCountdown()
-        } else {
-          stopCountdown()
-          timerValue.current = 0
-        }
+          setTimer(newTimer); startCountdown()
+        } else { stopCountdown(); timerValue.current = 0 }
         fetchData()
       } else if (msg.type === 'unsold') {
         setBidEvents([])
         setCurrentBid(msg.current_bid || 0)
         setStatus(msg.status || 'live')
-        triggerFlash('unsold')
+        triggerSoldEffect('unsold')
         notify('UNSOLD', `${currentPlayerRef.current?.name || 'Player'} goes unsold`, `unsold-${currentPlayerRef.current?.id || Date.now()}`)
-        // Reset timer for next player
         if (msg.status === 'live' && msg.current_player_id) {
           const newTimer = auction?.timer_seconds || 30
-          setTimer(newTimer)
-          startCountdown()
-        } else {
-          stopCountdown()
-          timerValue.current = 0
-        }
+          setTimer(newTimer); startCountdown()
+        } else { stopCountdown(); timerValue.current = 0 }
         fetchData()
       } else if (msg.type === 'state') {
         setCurrentBid(msg.current_bid)
         setCurrentTeamId(msg.current_team_id)
         setStatus(msg.status)
-        if (msg.timer_seconds && msg.status === 'live') {
-          setTimer(msg.timer_seconds)
-        }
+        if (msg.timer_seconds && msg.status === 'live') { setTimer(msg.timer_seconds) }
         fetchData()
       }
     }
@@ -285,31 +359,21 @@ export default function AuctionLive() {
 
   // Start countdown when auction goes live
   useEffect(() => {
-    if (status === 'live' && auction?.timer_enabled && timerValue.current > 0 && !timerInterval.current) {
-      startCountdown()
-    }
-    if (status !== 'live') {
-      stopCountdown()
-    }
+    if (status === 'live' && auction?.timer_enabled && timerValue.current > 0 && !timerInterval.current) startCountdown()
+    if (status !== 'live') stopCountdown()
   }, [status, auction?.timer_enabled, startCountdown, stopCountdown])
 
   // Keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
-
       const key = e.key.toUpperCase()
       const team = keyMap.current[key]
       if (team && status === 'live' && wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'bid',
-          team_id: team.id,
-          auto: true,
-        }))
+        wsRef.current.send(JSON.stringify({ type: 'bid', team_id: team.id, auto: true }))
         e.preventDefault()
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [status])
@@ -317,12 +381,8 @@ export default function AuctionLive() {
   // Actions
   const handleStart = async () => {
     if (!auctionId) return
-    try {
-      await startAuctionById(Number(auctionId))
-      await fetchData()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to start')
-    }
+    try { await startAuctionById(Number(auctionId)); await fetchData() }
+    catch (e: any) { setError(e?.response?.data?.detail || 'Failed to start') }
   }
 
   const handleNextPlayer = async () => {
@@ -330,14 +390,10 @@ export default function AuctionLive() {
     try {
       await nextPlayer(Number(auctionId))
       setBidEvents([])
-      setPlayerKey(k => k + 1)
       const newTimer = auction?.timer_seconds || 30
-      setTimer(newTimer)
-      startCountdown()
+      setTimer(newTimer); startCountdown()
       await fetchData()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed')
-    }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
   const handleSold = async () => {
@@ -347,20 +403,12 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
-      triggerFlash('sold')
+      triggerSoldEffect('sold')
       notify('SOLD!', `${currentPlayer?.name || 'Player'} sold for ${formatPrice(currentBid)}`, `sold-${currentPlayer?.id || Date.now()}`)
-      if (res.status === 'live') {
-        const newTimer = auction?.timer_seconds || 30
-        setTimer(newTimer)
-        startCountdown()
-      } else {
-        stopCountdown()
-        timerValue.current = 0
-      }
+      if (res.status === 'live') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
+      else { stopCountdown(); timerValue.current = 0 }
       await fetchData()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed')
-    }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
   const handleUnsold = async () => {
@@ -370,48 +418,27 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
-      triggerFlash('unsold')
+      triggerSoldEffect('unsold')
       notify('UNSOLD', `${currentPlayer?.name || 'Player'} goes unsold`, `unsold-${currentPlayer?.id || Date.now()}`)
-      if (res.status === 'live') {
-        const newTimer = auction?.timer_seconds || 30
-        setTimer(newTimer)
-        startCountdown()
-      } else {
-        stopCountdown()
-        timerValue.current = 0
-      }
+      if (res.status === 'live') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
+      else { stopCountdown(); timerValue.current = 0 }
       await fetchData()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed')
-    }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
   const handlePause = async () => {
     if (!auctionId) return
-    try {
-      await pauseAuction(Number(auctionId))
-      stopCountdown()
-      setStatus('paused')
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed')
-    }
+    try { await pauseAuction(Number(auctionId)); stopCountdown(); setStatus('paused') }
+    catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
   const handleResume = async () => {
     if (!auctionId) return
     try {
-      await resumeAuction(Number(auctionId))
-      setStatus('live')
-      if (auction?.timer_enabled && timerValue.current > 0) {
-        startCountdown()
-      } else {
-        const newTimer = auction?.timer_seconds || 30
-        setTimer(newTimer)
-        startCountdown()
-      }
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed')
-    }
+      await resumeAuction(Number(auctionId)); setStatus('live')
+      if (auction?.timer_enabled && timerValue.current > 0) startCountdown()
+      else { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
   const unsoldPlayers = allPlayers.filter(p => p.status === 'unsold')
@@ -422,207 +449,370 @@ export default function AuctionLive() {
   const currentTimerMax = timerMax.current
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white relative overflow-hidden">
-      {/* Sold/Unsold flash overlay */}
-      {flashEvent && (
-        <div
-          className={`absolute inset-0 z-40 pointer-events-none flex items-center justify-center ${
-            flashEvent === 'sold' ? 'sold-overlay' : 'unsold-overlay'
-          }`}
-        >
-          <span className={`text-8xl font-black tracking-wider animate-scale-in ${
-            flashEvent === 'sold' ? 'text-green-400 drop-shadow-[0_0_40px_rgba(34,197,94,0.6)]' : 'text-red-400 drop-shadow-[0_0_40px_rgba(239,68,68,0.6)]'
-          }`}>
-            {flashEvent === 'sold' ? 'SOLD!' : 'UNSOLD'}
-          </span>
-        </div>
+    <div className="min-h-screen bg-surface-0 text-white relative overflow-hidden noise-bg">
+      {/* Sold/Unsold overlay */}
+      <AnimatePresence>
+        {soldOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute inset-0 z-40 pointer-events-none flex items-center justify-center ${
+              soldOverlay === 'sold' ? 'bg-green-500/20' : 'bg-red-500/20'
+            }`}
+          >
+            {/* Pulse rings */}
+            {soldOverlay === 'sold' && (
+              <>
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0.8 }}
+                  animate={{ scale: 3, opacity: 0 }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  className="absolute w-40 h-40 rounded-full border-2 border-green-400/40"
+                />
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0.6 }}
+                  animate={{ scale: 4, opacity: 0 }}
+                  transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }}
+                  className="absolute w-40 h-40 rounded-full border border-green-400/20"
+                />
+              </>
+            )}
+
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+              className="flex flex-col items-center"
+            >
+              {soldOverlay === 'sold' && (
+                <Gavel className="w-16 h-16 text-accent-gold mb-4 drop-shadow-[0_0_30px_rgba(251,191,36,0.6)]" />
+              )}
+              <span className={`font-display text-8xl tracking-wider ${
+                soldOverlay === 'sold'
+                  ? 'text-green-400 drop-shadow-[0_0_60px_rgba(34,197,94,0.5)]'
+                  : 'text-red-400 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]'
+              }`}>
+                {soldOverlay === 'sold' ? 'SOLD!' : 'UNSOLD'}
+              </span>
+              {soldOverlay === 'sold' && leadingTeam && (
+                <motion.span
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-2xl text-accent-gold font-medium mt-2"
+                >
+                  {leadingTeam.short_name || leadingTeam.name} — {formatPrice(currentBid)}
+                </motion.span>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Gavel overlay */}
+      <GavelAnimation show={showGavel} />
+
+      {/* Sponsor corners */}
+      {auction && (
+        <>
+          <SponsorSlot src={auction.sponsor_tl} position="top-left" />
+          <SponsorSlot src={auction.sponsor_tr} position="top-right" />
+          <SponsorSlot src={auction.sponsor_bl} position="bottom-left" />
+          <SponsorSlot src={auction.sponsor_br} position="bottom-right" />
+        </>
       )}
 
       {/* Top Bar */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between relative z-10">
+      <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-6 py-3 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-500 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold">{auction?.name || 'Auction'}</h1>
-          <span className={`px-2 py-0.5 rounded text-xs font-bold transition-colors ${
-            status === 'live' ? 'bg-green-500 text-white' :
-            status === 'paused' ? 'bg-yellow-500 text-black' :
-            'bg-gray-600 text-gray-300'
-          }`}>
-            {status.toUpperCase()}
-          </span>
+          <h1 className="font-display text-2xl tracking-wide">{auction?.name || 'AUCTION'}</h1>
+          <motion.span
+            key={status}
+            initial={{ scale: 1.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+              status === 'live' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+              status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+              'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+            }`}
+          >
+            {status}
+          </motion.span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowShortcuts(!showShortcuts)} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm transition-colors">
+          <button onClick={() => setShowShortcuts(!showShortcuts)} className="text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors">
             <Keyboard className="w-4 h-4" /> Shortcuts
           </button>
           {isNotificationSupported() && (
-            <button onClick={toggleNotifications} className={notificationsOn ? 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm' : 'text-gray-600 hover:text-gray-400 flex items-center gap-1 text-sm'} title={notificationsOn ? 'Notifications on' : 'Enable notifications'}>
+            <button onClick={toggleNotifications} className={notificationsOn ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-600 hover:text-gray-400 flex items-center gap-1 text-sm'}>
               {notificationsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
           )}
-          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-500 hover:text-white transition-colors">
             <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-900/50 text-red-300 px-4 py-2 text-sm text-center animate-slide-up">
-          {error} <button onClick={() => setError('')} className="ml-2 text-red-400">x</button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-rose-500/10 border-b border-rose-500/20 text-rose-300 px-4 py-2 text-sm text-center"
+        >
+          {error} <button onClick={() => setError('')} className="ml-2 text-rose-400 font-bold">×</button>
+        </motion.div>
       )}
 
       <div className="flex h-[calc(100vh-56px)]">
         {/* Main Auction Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           {/* Current Player / Bid Display */}
           <div className="flex-1 flex items-center justify-center">
             {currentPlayer ? (
-              <div key={playerKey} className="text-center animate-player-reveal">
-                <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">
+              <motion.div
+                key={currentPlayer.id}
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+                className="text-center"
+              >
+                <div className="text-gray-500 text-sm mb-2 uppercase tracking-widest">
                   {currentPlayer.role} — {currentPlayer.country}
                 </div>
-                <h2 className="text-5xl font-bold mb-3">{currentPlayer.name}</h2>
-                <div className="text-gray-500 text-sm mb-4">
+                <h2 className="font-display text-7xl tracking-wide text-white mb-2">{currentPlayer.name}</h2>
+                <div className="text-gray-600 text-sm mb-6">
                   Base Price: {formatPrice(currentPlayer.base_price)}
                 </div>
-                <div className="bg-gray-800/80 rounded-2xl px-12 py-6 inline-block backdrop-blur border border-gray-700/50">
-                  <div className="text-sm text-gray-400 mb-1">Current Bid</div>
-                  <div key={bidBumpKey} className="text-5xl font-bold text-green-400 animate-price-bump">
+
+                {/* Bid card */}
+                <motion.div
+                  layout
+                  className="glass-strong rounded-3xl px-14 py-8 inline-block"
+                >
+                  <div className="text-sm text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
+                  <motion.div
+                    key={currentBid}
+                    initial={{ scale: 1.3, opacity: 0.5 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
+                    className="text-6xl font-bold gradient-text"
+                  >
                     {formatPrice(currentBid)}
-                  </div>
+                  </motion.div>
                   {leadingTeam && (
-                    <div className="mt-2 text-yellow-400 font-medium animate-bid-glow">
+                    <motion.div
+                      key={leadingTeam.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 text-accent-gold font-semibold text-lg"
+                    >
                       {leadingTeam.name} ({leadingTeam.short_name})
-                    </div>
+                    </motion.div>
                   )}
-                  <div className="mt-2 text-gray-500 text-sm">
+                  <div className="mt-2 text-gray-600 text-sm">
                     Next bid: {formatPrice(nextBidAmount)}
                   </div>
-                </div>
+                </motion.div>
+
                 {/* Timer */}
                 {auction?.timer_enabled && status === 'live' && (
-                  <div className="mt-6 flex justify-center">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8 flex justify-center"
+                  >
                     <TimerCircle seconds={currentTimerValue} maxSeconds={currentTimerMax} />
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             ) : status === 'live' ? (
-              <div className="text-center animate-fade-in">
-                <div className="text-gray-500 text-xl mb-4">No player selected</div>
-                <button onClick={handleNextPlayer} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center"
+              >
+                <div className="text-gray-600 text-xl mb-4">No player selected</div>
+                <motion.button
+                  onClick={handleNextPlayer}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20"
+                >
                   <Shuffle className="w-5 h-5" /> Random Player
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             ) : (
-              <div className="text-center animate-fade-in">
-                <div className="text-gray-500 text-xl mb-4">Auction not started</div>
-                <button onClick={handleStart} className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center"
+              >
+                <div className="text-gray-600 text-xl mb-4">Auction not started</div>
+                <motion.button
+                  onClick={handleStart}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-emerald-600/20"
+                >
                   <Play className="w-5 h-5" /> Start Auction
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             )}
           </div>
 
           {/* Control Bar */}
           {status === 'live' && currentPlayer && (
-            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3 animate-slide-up">
-              <button onClick={handleNextPlayer} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex items-center justify-center gap-4"
+            >
+              <motion.button
+                onClick={handleNextPlayer}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5"
+              >
                 <Shuffle className="w-4 h-4" /> Next
-              </button>
-              <button onClick={handleSold} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
-                <Check className="w-4 h-4" /> SOLD
-              </button>
-              <button onClick={handleUnsold} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
+              </motion.button>
+              <motion.button
+                onClick={handleSold}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                <Gavel className="w-4 h-4" /> SOLD
+              </motion.button>
+              <motion.button
+                onClick={handleUnsold}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-rose-500/20"
+              >
                 <X className="w-4 h-4" /> UNSOLD
-              </button>
-              <button onClick={handlePause} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors">
+              </motion.button>
+              <motion.button
+                onClick={handlePause}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-amber-600/80 hover:bg-amber-600 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors"
+              >
                 <Pause className="w-4 h-4" /> Pause
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           )}
           {status === 'paused' && (
-            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3 animate-fade-in">
-              <button onClick={handleResume} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex items-center justify-center gap-3"
+            >
+              <motion.button
+                onClick={handleResume}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
                 <Play className="w-4 h-4" /> Resume
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           )}
         </div>
 
-        {/* Sidebar: Teams + Keyboard Shortcuts */}
-        <div className="w-96 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
-          {/* Team Cards with Shortcuts */}
+        {/* Sidebar */}
+        <div className="w-96 bg-surface-1/40 backdrop-blur-lg border-l border-white/5 flex flex-col overflow-hidden">
+          {/* Team Cards */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2 dark-scrollbar">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Teams</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Teams</h3>
               <span className="text-xs text-gray-600">{soldCount}/{allPlayers.length} sold</span>
             </div>
             {teams.map(team => {
               const key = Object.entries(keyMap.current).find(([_, t]) => t.id === team.id)?.[0]
               const isLeading = team.id === currentTeamId
+              const budgetPct = team.total_budget > 0 ? Math.round((team.remaining_budget / team.total_budget) * 100) : 0
               return (
-                <div
+                <motion.div
                   key={team.id}
-                  className={`rounded-lg p-3 border transition-all duration-300 ${
+                  layout
+                  animate={isLeading ? { scale: 1.02 } : { scale: 1 }}
+                  className={`rounded-xl p-3 border transition-all duration-300 ${
                     isLeading
-                      ? 'bg-yellow-900/30 border-yellow-500/50 shadow-lg shadow-yellow-500/10 scale-[1.02]'
-                      : 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70'
+                      ? 'bg-accent-gold/10 border-accent-gold/30 glow-gold'
+                      : 'bg-surface-2/50 border-white/5 hover:bg-surface-3/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {showShortcuts && key && (
-                        <kbd className={`px-2 py-1 rounded text-xs font-mono font-bold border transition-colors ${
-                          isLeading ? 'bg-yellow-800 border-yellow-600 text-yellow-300' : 'bg-gray-700 border-gray-600 text-gray-300'
+                        <kbd className={`px-2 py-1 rounded-lg text-xs font-mono font-bold border ${
+                          isLeading ? 'bg-accent-gold/20 border-accent-gold/40 text-accent-gold' : 'bg-surface-3 border-white/10 text-gray-400'
                         }`}>
                           {key}
                         </kbd>
                       )}
                       <div>
-                        <div className={`font-medium text-sm transition-colors ${isLeading ? 'text-yellow-400' : 'text-gray-200'}`}>
+                        <div className={`font-semibold text-sm ${isLeading ? 'text-accent-gold' : 'text-gray-300'}`}>
                           {team.short_name || team.name}
                         </div>
-                        <div className="text-xs text-gray-500">{formatPrice(team.remaining_budget)}</div>
+                        <div className="text-xs text-gray-600">{formatPrice(team.remaining_budget)}</div>
                       </div>
                     </div>
                     {isLeading && (
-                      <div className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-medium animate-bid-glow">
+                      <motion.span
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="text-xs bg-accent-gold/20 text-accent-gold px-2 py-0.5 rounded-lg font-semibold"
+                      >
                         LEADING
-                      </div>
+                      </motion.span>
                     )}
                   </div>
-                </div>
+                  {/* Budget bar */}
+                  <div className="mt-2 h-1 bg-surface-4 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${isLeading ? 'bg-accent-gold' : 'bg-primary-500'}`}
+                      style={{ width: `${budgetPct}%` }}
+                    />
+                  </div>
+                </motion.div>
               )
             })}
           </div>
 
           {/* Bid History */}
-          <div className="border-t border-gray-800 p-4 max-h-48 overflow-y-auto dark-scrollbar">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Bid History</h3>
+          <div className="border-t border-white/5 p-4 max-h-48 overflow-y-auto dark-scrollbar">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Bid History</h3>
             {bidEvents.length === 0 ? (
-              <p className="text-gray-600 text-xs">No bids yet</p>
+              <p className="text-gray-700 text-xs">No bids yet</p>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {bidEvents.map((evt, i) => (
-                  <div key={evt.id} className={`flex items-center justify-between text-xs ${i === 0 ? 'animate-slide-in-right' : ''}`}>
-                    <span className={i === 0 ? 'text-green-400 font-medium' : 'text-gray-500'}>
-                      {evt.team_short || evt.team_name}
-                    </span>
-                    <span className={i === 0 ? 'text-white font-medium' : 'text-gray-400'}>
-                      {formatPrice(evt.amount)}
-                    </span>
-                  </div>
+                  <motion.div
+                    key={evt.id}
+                    initial={i === 0 ? { opacity: 0, x: 20 } : false}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex items-center justify-between text-xs ${i === 0 ? 'text-white' : 'text-gray-500'}`}
+                  >
+                    <span className={i === 0 ? 'font-semibold' : ''}>{evt.team_short || evt.team_name}</span>
+                    <span className={`font-mono ${i === 0 ? 'font-bold text-accent-gold' : ''}`}>{formatPrice(evt.amount)}</span>
+                  </motion.div>
                 ))}
               </div>
             )}
           </div>
 
           {/* Unsold count */}
-          <div className="border-t border-gray-800 p-4">
-            <div className="text-xs text-gray-500">
+          <div className="border-t border-white/5 p-4">
+            <div className="text-xs text-gray-600">
               {unsoldPlayers.length} unsold players remaining
             </div>
           </div>

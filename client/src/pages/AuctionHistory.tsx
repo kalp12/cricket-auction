@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { ArrowLeft, History, Users, TrendingUp, Search } from 'lucide-react'
 import { getAuctionHistory, getTeams } from '../api'
 
@@ -32,90 +33,77 @@ export default function AuctionHistory() {
 
   const aid = Number(auctionId)
 
-  useEffect(() => {
-    fetchData()
-  }, [auctionId])
+  useEffect(() => { fetchData() }, [auctionId])
 
   const fetchData = async () => {
     try {
-      const [historyData, teamsData] = await Promise.all([
-        getAuctionHistory(aid),
-        getTeams(aid),
-      ])
-      setHistory(historyData)
-      setTeams(teamsData)
-    } catch {
-      /* */
-    }
+      const [historyData, teamsData] = await Promise.all([getAuctionHistory(aid), getTeams(aid)])
+      setHistory(historyData); setTeams(teamsData)
+    } catch { /* */ }
     setLoading(false)
   }
 
   const teamColorMap: Record<string, string> = {}
-  teams.forEach((t, i) => {
-    teamColorMap[t.name] = teamColors[i % teamColors.length]
-  })
+  teams.forEach((t, i) => { teamColorMap[t.name] = teamColors[i % teamColors.length] })
 
   const filtered = history.filter(entry => {
-    const matchesSearch = entry.player.toLowerCase().includes(search.toLowerCase()) ||
-      entry.team.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = entry.player.toLowerCase().includes(search.toLowerCase()) || entry.team.toLowerCase().includes(search.toLowerCase())
     const matchesTeam = filterTeam === 'all' || entry.team === filterTeam
     return matchesSearch && matchesTeam
   })
 
   const totalSpent = history.reduce((sum, e) => sum + e.price, 0)
   const teamSpending: Record<string, number> = {}
-  history.forEach(e => {
-    teamSpending[e.team] = (teamSpending[e.team] || 0) + e.price
-  })
+  history.forEach(e => { teamSpending[e.team] = (teamSpending[e.team] || 0) + e.price })
 
-  if (loading) return <div className="p-12 text-gray-400 text-center">Loading history...</div>
+  if (loading) return <div className="p-12 text-gray-600 text-center">Loading history...</div>
 
   return (
-    <div className="animate-fade-in">
-      <nav className="text-sm text-gray-500 mb-2">
-        <span className="text-gray-400">HOME</span>
-        <span className="mx-2 text-gray-300">›</span>
-        <span className="text-gray-400 cursor-pointer hover:text-gray-600" onClick={() => navigate('/auctions')}>AUCTIONS</span>
-        <span className="mx-2 text-gray-300">›</span>
-        <span className="text-gray-700 font-medium">AUCTION HISTORY</span>
+    <div className="animate-fade-in noise-bg relative">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary-700/10 rounded-full blur-[100px] pointer-events-none" />
+
+      <nav className="text-sm text-gray-600 mb-2">
+        <span className="text-gray-600">HOME</span>
+        <span className="mx-2 text-gray-700">›</span>
+        <span className="text-gray-500 cursor-pointer hover:text-gray-300" onClick={() => navigate('/auctions')}>AUCTIONS</span>
+        <span className="mx-2 text-gray-700">›</span>
+        <span className="text-gray-400">HISTORY</span>
       </nav>
 
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(`/auctions/${aid}`)} className="text-gray-500 hover:text-gray-700">
+        <button onClick={() => navigate(`/auctions/${aid}`)} className="text-gray-500 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-3xl font-bold text-gray-800">Auction History</h1>
+        <h1 className="font-display text-5xl tracking-wide gradient-text">AUCTION HISTORY</h1>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3 mb-1">
-            <History className="w-5 h-5 text-blue-500" />
-            <p className="text-xs text-gray-500 uppercase">Total Sold</p>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{history.length} players</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3 mb-1">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-            <p className="text-xs text-gray-500 uppercase">Total Spent</p>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{formatPrice(totalSpent)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3 mb-1">
-            <Users className="w-5 h-5 text-purple-500" />
-            <p className="text-xs text-gray-500 uppercase">Teams Active</p>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{Object.keys(teamSpending).length}</p>
-        </div>
+        {[
+          { icon: History, label: 'Total Sold', value: `${history.length} players`, color: 'text-primary-400' },
+          { icon: TrendingUp, label: 'Total Spent', value: formatPrice(totalSpent), color: 'text-emerald-400' },
+          { icon: Users, label: 'Teams Active', value: `${Object.keys(teamSpending).length}`, color: 'text-purple-400' },
+        ].map(({ icon: Icon, label, value, color }, i) => (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="glass-strong rounded-2xl p-5"
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <Icon className={`w-5 h-5 ${color}`} />
+              <p className="text-xs text-gray-500 uppercase tracking-wider">{label}</p>
+            </div>
+            <p className="text-2xl font-bold text-white">{value}</p>
+          </motion.div>
+        ))}
       </div>
 
       {/* Team Spending Breakdown */}
       {Object.keys(teamSpending).length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="font-bold text-gray-800 mb-4">Team Spending</h2>
+        <div className="glass-strong rounded-2xl p-6 mb-6">
+          <h2 className="font-bold text-white mb-4">Team Spending</h2>
           <div className="space-y-3">
             {teams.map(team => {
               const spent = teamSpending[team.name] || 0
@@ -126,16 +114,13 @@ export default function AuctionHistory() {
                   <div className="flex items-center justify-between text-sm mb-1">
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${color}`} />
-                      <span className="font-medium text-gray-700">{team.name}</span>
-                      <span className="text-gray-400">({team.short_name})</span>
+                      <span className="font-medium text-gray-300">{team.name}</span>
+                      <span className="text-gray-600">({team.short_name})</span>
                     </div>
                     <span className="text-gray-500">{formatPrice(spent)} / {formatPrice(team.total_budget)}</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${color} transition-all`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="h-2 bg-surface-4 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               )
@@ -145,41 +130,34 @@ export default function AuctionHistory() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+      <div className="glass rounded-xl p-4 mb-6 border border-white/5">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search player or team..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-            />
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm" />
           </div>
-          <select
-            value={filterTeam}
-            onChange={e => setFilterTeam(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
+          <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
+            className="px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-gray-300 text-sm focus:ring-2 focus:ring-accent-gold/50 outline-none">
             <option value="all">All Teams</option>
             {teams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
           </select>
-          <span className="text-sm text-gray-500">{filtered.length} results</span>
+          <span className="text-sm text-gray-600">{filtered.length} results</span>
         </div>
       </div>
 
       {/* History Table */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <History className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <div className="glass-strong rounded-2xl p-12 text-center">
+          <History className="w-12 h-12 text-gray-700 mx-auto mb-4" />
           <p className="text-gray-500">No auction history yet. Sold players will appear here.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="glass-strong rounded-2xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
+              <tr className="border-b border-white/5">
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">#</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Player</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Team</th>
@@ -190,26 +168,32 @@ export default function AuctionHistory() {
               {filtered.map((entry, i) => {
                 const color = teamColorMap[entry.team] || 'bg-gray-500'
                 return (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 text-sm text-gray-400">{i + 1}</td>
+                  <motion.tr
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.02 }}
+                    className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="px-5 py-3 text-sm text-gray-600 font-mono">{i + 1}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-800 rounded-full flex items-center justify-center text-sm font-bold text-white">
                           {entry.player[0]}
                         </div>
-                        <span className="font-medium text-gray-800 text-sm">{entry.player}</span>
+                        <span className="font-medium text-white text-sm">{entry.player}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${color}`} />
-                        <span className="text-sm text-gray-700">{entry.team}</span>
+                        <span className="text-sm text-gray-400">{entry.team}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-right text-sm font-semibold text-green-600">
+                    <td className="px-5 py-3 text-right text-sm font-semibold gradient-text">
                       {formatPrice(entry.price)}
                     </td>
-                  </tr>
+                  </motion.tr>
                 )
               })}
             </tbody>

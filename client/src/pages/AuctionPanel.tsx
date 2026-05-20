@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gavel } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Gavel, Zap } from 'lucide-react'
 import { listAuctions } from '../api'
+
+const statusStyles: Record<string, string> = {
+  live: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  paused: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  ended: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  waiting: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+}
 
 export default function AuctionPanel() {
   const navigate = useNavigate()
@@ -10,59 +18,64 @@ export default function AuctionPanel() {
 
   useEffect(() => {
     const fetchAuctions = async () => {
-      try {
-        const data = await listAuctions()
-        setAuctions(data)
-      } catch { /* empty */ } finally {
-        setLoading(false)
-      }
+      try { const data = await listAuctions(); setAuctions(data) }
+      catch { /* empty */ } finally { setLoading(false) }
     }
     fetchAuctions()
   }, [])
 
-  if (loading) return <div className="text-gray-400 p-12 text-center">Loading...</div>
+  if (loading) return <div className="p-12 text-gray-600 text-center">Loading...</div>
 
   if (auctions.length === 0) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Auction Panel</h1>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Gavel className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h1 className="font-display text-5xl tracking-wide text-white mb-8">AUCTION PANEL</h1>
+        <div className="glass-strong rounded-2xl p-12 text-center max-w-lg">
+          <Gavel className="w-12 h-12 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-500 mb-4">No auctions yet. Create one first.</p>
-          <button
+          <motion.button
             onClick={() => navigate('/auctions/new')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="bg-gradient-to-r from-accent-gold to-amber-500 text-black font-bold px-6 py-2.5 rounded-xl"
           >
             Create Auction
-          </button>
+          </motion.button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="animate-fade-in">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Auction Panel</h1>
+    <div className="animate-fade-in relative noise-bg">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent-gold/5 rounded-full blur-[100px] pointer-events-none" />
+
+      <h1 className="font-display text-5xl tracking-wide gradient-text mb-2">AUCTION PANEL</h1>
+      <p className="text-gray-500 mb-8">Select an auction to enter the live room</p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {auctions.map(a => (
-          <button
+        {auctions.map((a, i) => (
+          <motion.button
             key={a.id}
             onClick={() => navigate(`/auctions/${a.id}/live`)}
-            className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05, ease: [0.34, 1.56, 0.64, 1] }}
+            whileHover={{ scale: 1.03, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            className="glass-strong rounded-2xl p-6 text-left group relative overflow-hidden"
           >
-            <div className="flex items-center gap-3 mb-2">
-              <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                a.status === 'live' ? 'bg-green-100 text-green-700' :
-                a.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                a.status === 'ended' ? 'bg-red-100 text-red-700' :
-                'bg-gray-100 text-gray-600'
-              }`}>
-                {a.status.toUpperCase()}
+            <div className="flex items-center justify-between mb-3">
+              <span className={`text-xs px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider border ${statusStyles[a.status] || statusStyles.waiting}`}>
+                {a.status}
               </span>
+              {a.status === 'live' && (
+                <Zap className="w-4 h-4 text-emerald-400 animate-pulse" />
+              )}
             </div>
-            <h3 className="font-bold text-gray-800">{a.name}</h3>
-            <p className="text-sm text-gray-500 mt-1">Click to open live auction</p>
-          </button>
+            <h3 className="font-display text-2xl tracking-wide text-white">{a.name}</h3>
+            <p className="text-sm text-gray-500 mt-1 group-hover:text-gray-400 transition-colors">Click to open live auction</p>
+          </motion.button>
         ))}
       </div>
     </div>
