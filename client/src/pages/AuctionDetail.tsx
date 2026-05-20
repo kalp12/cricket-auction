@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Users, User, Tags, Pencil, Trash2,
-  Link, Copy, Timer, TrendingUp, Palette
+  Link, Copy, Timer, TrendingUp, Palette, History, BarChart3
 } from 'lucide-react'
 import { getAuction, updateAuction, deleteAuction } from '../api'
 
@@ -89,7 +89,7 @@ export default function AuctionDetail() {
   const isActive = auction.status !== 'ended'
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>
@@ -144,7 +144,14 @@ export default function AuctionDetail() {
             <button onClick={() => navigate(`/auctions/${id}/players`)} title="Manage Players" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <User className="w-5 h-5 text-gray-500" />
             </button>
-            <button title="Categories" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={() => navigate(`/auctions/${id}/history`)} title="Auction History" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <History className="w-5 h-5 text-gray-500" />
+        </button>
+        <button onClick={() => navigate(`/auctions/${id}/stats`)} title="Stats" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <BarChart3 className="w-5 h-5 text-gray-500" />
+        </button>
+        
+        <button title="Categories" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <Tags className="w-5 h-5 text-gray-500" />
             </button>
             <button onClick={() => setEditMode(!editMode)} title="Edit" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">

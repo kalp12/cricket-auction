@@ -39,7 +39,7 @@ export default function MyAuctions() {
   if (loading) return <div className="text-gray-400 p-12 text-center">Loading auctions...</div>
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>
@@ -77,7 +77,7 @@ export default function MyAuctions() {
               <button
                 key={auction.id}
                 onClick={() => navigate(`/auctions/${auction.id}`)}
-                className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:shadow-md hover:border-blue-300 transition-all group"
+                className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:shadow-md hover:border-blue-300 transition-all duration-200 group hover:scale-[1.02] active:scale-[0.98]"
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">

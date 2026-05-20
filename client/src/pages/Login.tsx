@@ -26,7 +26,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-950 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-scale-in">
         <div className="flex items-center justify-center gap-3 mb-6">
           <Trophy className="w-10 h-10 text-yellow-500" />
           <h1 className="text-2xl font-bold text-gray-800">Cricket Auction</h1>

@@ -81,7 +81,7 @@ export default function NewAuction() {
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }))
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>

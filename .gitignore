@@ -1,0 +1,15 @@
+.gitignore
+.claude
+.claude_cache
+.claudeignore
+claude.md
+server/__pycache__
+server/venv
+server/.env
+__pycache__/
+*.pyc
+*.pyo
+server/venv/
+node_modules/
+server/uploads/
+.env

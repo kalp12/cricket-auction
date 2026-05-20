@@ -127,6 +127,10 @@ export const updateSlab = async (id: number, data: { min_price?: number; max_pri
 export const deleteSlab = async (id: number) =>
   (await axios.delete(`${BASE}/api/slabs/${id}`, { headers: headers() })).data
 
+// ── Stats ─────────────────────────────────────────────
+export const getAuctionStats = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/auction/${auctionId}/stats`, { headers: headers() })).data
+
 // ── Image Upload ──────────────────────────────────────
 export const uploadImage = async (file: File) => {
   const formData = new FormData()

@@ -86,7 +86,7 @@ export default function Teams() {
   if (loading) return <div className="p-12 text-gray-400 text-center">Loading teams...</div>
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>

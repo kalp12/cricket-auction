@@ -9,3 +9,50 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Smooth page transitions */
+.page-enter {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Bid amount transition */
+.bid-amount-change {
+  animation: price-bump 0.3s ease-out;
+}
+
+/* Sold overlay */
+.sold-overlay {
+  animation: sold-flash 1.2s ease-out forwards;
+}
+
+/* Unsold overlay */
+.unsold-overlay {
+  animation: unsold-flash 1.2s ease-out forwards;
+}
+
+/* Team card leading glow */
+.team-leading {
+  animation: bid-glow 2s ease-in-out infinite alternate;
+}
+
+/* Scrollbar styling for dark auction room */
+.dark-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glass effect for cards */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

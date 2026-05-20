@@ -35,7 +35,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>
@@ -51,7 +51,7 @@ export default function Dashboard() {
             <button
               key={label}
               onClick={() => navigate(to)}
-              className={`bg-white rounded-xl border-2 ${c.border} ${c.bg} p-8 flex flex-col items-center gap-4 transition-all cursor-pointer shadow-sm hover:shadow-md`}
+              className={`bg-white rounded-xl border-2 ${c.border} ${c.bg} p-8 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]`}
             >
               <div className={`w-16 h-16 rounded-full ${c.iconBg} flex items-center justify-center`}>
                 <Icon className={`w-8 h-8 ${c.icon}`} />

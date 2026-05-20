@@ -12,9 +12,10 @@ from routes.bids import router as bids_router
 from routes.auctions import router as auctions_router
 from routes.slabs import router as slabs_router
 from routes.upload import router as upload_router
+from routes.stats import router as stats_router
 
 # Register all models with Base before create_all
-import models.models # noqa: F401
+import models.models  # noqa: F401
 
 app = FastAPI(title="Cricket Auction API")
 
@@ -33,14 +34,17 @@ Base.metadata.create_all(bind=engine)
 def run_migrations():
     migrations = [
         ("auctions", "image_url", "ALTER TABLE auctions ADD COLUMN image_url VARCHAR"),
-        ("bid_increment_slabs", "id", None),  # table is new, create_all handles it
+        ("players", "matches", "ALTER TABLE players ADD COLUMN matches INTEGER DEFAULT 0"),
+        ("players", "runs", "ALTER TABLE players ADD COLUMN runs INTEGER DEFAULT 0"),
+        ("players", "wickets", "ALTER TABLE players ADD COLUMN wickets INTEGER DEFAULT 0"),
+        ("players", "batting_avg", "ALTER TABLE players ADD COLUMN batting_avg FLOAT DEFAULT 0"),
+        ("players", "batting_sr", "ALTER TABLE players ADD COLUMN batting_sr FLOAT DEFAULT 0"),
+        ("players", "bowling_avg", "ALTER TABLE players ADD COLUMN bowling_avg FLOAT DEFAULT 0"),
+        ("players", "bowling_econ", "ALTER TABLE players ADD COLUMN bowling_econ FLOAT DEFAULT 0"),
     ]
     db = SessionLocal()
     try:
         for table, column, alter_sql in migrations:
-            if alter_sql is None:
-                continue
-            # Check if column already exists
             result = db.execute(text(
                 "SELECT column_name FROM information_schema.columns "
                 f"WHERE table_name = '{table}' AND column_name = '{column}'"
@@ -69,6 +73,7 @@ app.include_router(auction_router, prefix="/api/auction", tags=["auction"])
 app.include_router(auctions_router, prefix="/api/auctions", tags=["auctions"])
 app.include_router(slabs_router, prefix="/api/slabs", tags=["slabs"])
 app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
+app.include_router(stats_router, prefix="/api", tags=["stats"])
 app.include_router(bids_router, tags=["websocket"])
 
 

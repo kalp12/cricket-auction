@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard, Shuffle } from 'lucide-react'
+import { ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard, Shuffle, Bell, BellOff } from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction } from '../api'
+import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
 
 interface Team {
   id: number
@@ -21,6 +22,7 @@ interface BidEvent {
   team_name: string
   team_short: string
   amount: number
+  id: number
 }
 
 const formatPrice = (val: number) => {
@@ -66,7 +68,7 @@ function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: num
           className="transition-all duration-1000 ease-linear"
         />
       </svg>
-      <div className={`text-4xl font-mono font-bold ${seconds <= 5 ? 'text-red-400 animate-pulse' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
+      <div className={`text-4xl font-mono font-bold transition-all ${seconds <= 5 ? 'text-red-400 animate-count-urgent' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
         {seconds}
       </div>
     </div>
@@ -89,6 +91,29 @@ export default function AuctionLive() {
   const [status, setStatus] = useState('waiting')
   const [error, setError] = useState('')
   const [showShortcuts, setShowShortcuts] = useState(true)
+  const [notificationsOn, setNotificationsOn] = useState(areNotificationsEnabled())
+
+  // Animation state
+  const [flashEvent, setFlashEvent] = useState<'sold' | 'unsold' | null>(null)
+  const [bidBumpKey, setBidBumpKey] = useState(0)
+  const [playerKey, setPlayerKey] = useState(0)
+  const bidIdCounter = useRef(0)
+
+  const currentPlayerRef = useRef(currentPlayer)
+  currentPlayerRef.current = currentPlayer
+
+  const toggleNotifications = async () => {
+    if (!notificationsOn) {
+      const perm = await requestNotificationPermission()
+      if (perm === 'granted') {
+        setNotificationsEnabled(true)
+        setNotificationsOn(true)
+      }
+    } else {
+      setNotificationsEnabled(false)
+      setNotificationsOn(false)
+    }
+  }
 
   // Timer state — using refs for smooth countdown
   const timerValue = useRef(0)
@@ -112,6 +137,7 @@ export default function AuctionLive() {
         // Timer expired — stop countdown
         if (timerInterval.current) clearInterval(timerInterval.current)
         timerInterval.current = null
+        notify('Timer Expired', `${currentPlayerRef.current?.name || 'Player'} — no more bids`, 'timer-expired')
       }
     }, 1000)
   }, [])
@@ -172,6 +198,7 @@ export default function AuctionLive() {
       if (auctionData.current_player_id) {
         const p = (playersData.players || playersData).find((pl: any) => pl.id === auctionData.current_player_id)
         setCurrentPlayer(p || null)
+        setPlayerKey(k => k + 1)
       }
 
       buildKeyMap(teamsData)
@@ -179,6 +206,11 @@ export default function AuctionLive() {
       console.error(e)
     }
   }, [auctionId, buildKeyMap])
+
+  const triggerFlash = (event: 'sold' | 'unsold') => {
+    setFlashEvent(event)
+    setTimeout(() => setFlashEvent(null), 1200)
+  }
 
   // WebSocket connection
   useEffect(() => {
@@ -193,19 +225,40 @@ export default function AuctionLive() {
       if (msg.type === 'bid_update') {
         setCurrentBid(msg.amount)
         setCurrentTeamId(msg.team_id)
+        setBidBumpKey(k => k + 1)
         // Reset timer on each bid
         const newTimer = msg.timer_seconds || 30
         setTimer(newTimer)
         startCountdown()
+        bidIdCounter.current += 1
         setBidEvents(prev => [{
           team_name: msg.team_name,
           team_short: msg.team_name?.substring(0, 3).toUpperCase() || '',
           amount: msg.amount,
+          id: bidIdCounter.current,
         }, ...prev].slice(0, 10))
-      } else if (msg.type === 'sold' || msg.type === 'unsold') {
+      } else if (msg.type === 'sold') {
         setBidEvents([])
         setCurrentBid(msg.current_bid || 0)
         setStatus(msg.status || 'live')
+        triggerFlash('sold')
+        notify('SOLD!', `${currentPlayerRef.current?.name || 'Player'} sold to ${msg.team_name || 'team'} for ${formatPrice(msg.amount || currentBid)}`, `sold-${currentPlayerRef.current?.id || Date.now()}`)
+        // Reset timer for next player
+        if (msg.status === 'live' && msg.current_player_id) {
+          const newTimer = auction?.timer_seconds || 30
+          setTimer(newTimer)
+          startCountdown()
+        } else {
+          stopCountdown()
+          timerValue.current = 0
+        }
+        fetchData()
+      } else if (msg.type === 'unsold') {
+        setBidEvents([])
+        setCurrentBid(msg.current_bid || 0)
+        setStatus(msg.status || 'live')
+        triggerFlash('unsold')
+        notify('UNSOLD', `${currentPlayerRef.current?.name || 'Player'} goes unsold`, `unsold-${currentPlayerRef.current?.id || Date.now()}`)
         // Reset timer for next player
         if (msg.status === 'live' && msg.current_player_id) {
           const newTimer = auction?.timer_seconds || 30
@@ -228,7 +281,7 @@ export default function AuctionLive() {
     }
 
     return () => { ws.close(); stopCountdown() }
-  }, [auctionId, fetchData, setTimer, startCountdown, stopCountdown, auction?.timer_seconds])
+  }, [auctionId, fetchData, setTimer, startCountdown, stopCountdown, auction?.timer_seconds, currentBid])
 
   // Start countdown when auction goes live
   useEffect(() => {
@@ -277,6 +330,7 @@ export default function AuctionLive() {
     try {
       await nextPlayer(Number(auctionId))
       setBidEvents([])
+      setPlayerKey(k => k + 1)
       const newTimer = auction?.timer_seconds || 30
       setTimer(newTimer)
       startCountdown()
@@ -293,6 +347,8 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
+      triggerFlash('sold')
+      notify('SOLD!', `${currentPlayer?.name || 'Player'} sold for ${formatPrice(currentBid)}`, `sold-${currentPlayer?.id || Date.now()}`)
       if (res.status === 'live') {
         const newTimer = auction?.timer_seconds || 30
         setTimer(newTimer)
@@ -314,6 +370,8 @@ export default function AuctionLive() {
       setBidEvents([])
       setCurrentBid(res.current_bid || 0)
       setStatus(res.status || 'live')
+      triggerFlash('unsold')
+      notify('UNSOLD', `${currentPlayer?.name || 'Player'} goes unsold`, `unsold-${currentPlayer?.id || Date.now()}`)
       if (res.status === 'live') {
         const newTimer = auction?.timer_seconds || 30
         setTimer(newTimer)
@@ -364,15 +422,30 @@ export default function AuctionLive() {
   const currentTimerMax = timerMax.current
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white relative overflow-hidden">
+      {/* Sold/Unsold flash overlay */}
+      {flashEvent && (
+        <div
+          className={`absolute inset-0 z-40 pointer-events-none flex items-center justify-center ${
+            flashEvent === 'sold' ? 'sold-overlay' : 'unsold-overlay'
+          }`}
+        >
+          <span className={`text-8xl font-black tracking-wider animate-scale-in ${
+            flashEvent === 'sold' ? 'text-green-400 drop-shadow-[0_0_40px_rgba(34,197,94,0.6)]' : 'text-red-400 drop-shadow-[0_0_40px_rgba(239,68,68,0.6)]'
+          }`}>
+            {flashEvent === 'sold' ? 'SOLD!' : 'UNSOLD'}
+          </span>
+        </div>
+      )}
+
       {/* Top Bar */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
+      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-400 hover:text-white">
+          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold">{auction?.name || 'Auction'}</h1>
-          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+          <span className={`px-2 py-0.5 rounded text-xs font-bold transition-colors ${
             status === 'live' ? 'bg-green-500 text-white' :
             status === 'paused' ? 'bg-yellow-500 text-black' :
             'bg-gray-600 text-gray-300'
@@ -381,17 +454,22 @@ export default function AuctionLive() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowShortcuts(!showShortcuts)} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
+          <button onClick={() => setShowShortcuts(!showShortcuts)} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm transition-colors">
             <Keyboard className="w-4 h-4" /> Shortcuts
           </button>
-          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-400 hover:text-white">
+          {isNotificationSupported() && (
+            <button onClick={toggleNotifications} className={notificationsOn ? 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm' : 'text-gray-600 hover:text-gray-400 flex items-center gap-1 text-sm'} title={notificationsOn ? 'Notifications on' : 'Enable notifications'}>
+              {notificationsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            </button>
+          )}
+          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-400 hover:text-white transition-colors">
             <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-900/50 text-red-300 px-4 py-2 text-sm text-center">
+        <div className="bg-red-900/50 text-red-300 px-4 py-2 text-sm text-center animate-slide-up">
           {error} <button onClick={() => setError('')} className="ml-2 text-red-400">x</button>
         </div>
       )}
@@ -402,7 +480,7 @@ export default function AuctionLive() {
           {/* Current Player / Bid Display */}
           <div className="flex-1 flex items-center justify-center">
             {currentPlayer ? (
-              <div className="text-center">
+              <div key={playerKey} className="text-center animate-player-reveal">
                 <div className="text-gray-400 text-sm mb-1 uppercase tracking-wider">
                   {currentPlayer.role} — {currentPlayer.country}
                 </div>
@@ -410,13 +488,13 @@ export default function AuctionLive() {
                 <div className="text-gray-500 text-sm mb-4">
                   Base Price: {formatPrice(currentPlayer.base_price)}
                 </div>
-                <div className="bg-gray-800 rounded-2xl px-12 py-6 inline-block">
+                <div className="bg-gray-800/80 rounded-2xl px-12 py-6 inline-block backdrop-blur border border-gray-700/50">
                   <div className="text-sm text-gray-400 mb-1">Current Bid</div>
-                  <div className="text-5xl font-bold text-green-400">
+                  <div key={bidBumpKey} className="text-5xl font-bold text-green-400 animate-price-bump">
                     {formatPrice(currentBid)}
                   </div>
                   {leadingTeam && (
-                    <div className="mt-2 text-yellow-400 font-medium">
+                    <div className="mt-2 text-yellow-400 font-medium animate-bid-glow">
                       {leadingTeam.name} ({leadingTeam.short_name})
                     </div>
                   )}
@@ -432,16 +510,16 @@ export default function AuctionLive() {
                 )}
               </div>
             ) : status === 'live' ? (
-              <div className="text-center">
+              <div className="text-center animate-fade-in">
                 <div className="text-gray-500 text-xl mb-4">No player selected</div>
-                <button onClick={handleNextPlayer} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto">
+                <button onClick={handleNextPlayer} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors">
                   <Shuffle className="w-5 h-5" /> Random Player
                 </button>
               </div>
             ) : (
-              <div className="text-center">
+              <div className="text-center animate-fade-in">
                 <div className="text-gray-500 text-xl mb-4">Auction not started</div>
-                <button onClick={handleStart} className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto">
+                <button onClick={handleStart} className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors">
                   <Play className="w-5 h-5" /> Start Auction
                 </button>
               </div>
@@ -450,24 +528,24 @@ export default function AuctionLive() {
 
           {/* Control Bar */}
           {status === 'live' && currentPlayer && (
-            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3">
-              <button onClick={handleNextPlayer} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm">
+            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3 animate-slide-up">
+              <button onClick={handleNextPlayer} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors">
                 <Shuffle className="w-4 h-4" /> Next
               </button>
-              <button onClick={handleSold} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2">
+              <button onClick={handleSold} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
                 <Check className="w-4 h-4" /> SOLD
               </button>
-              <button onClick={handleUnsold} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2">
+              <button onClick={handleUnsold} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
                 <X className="w-4 h-4" /> UNSOLD
               </button>
-              <button onClick={handlePause} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm">
+              <button onClick={handlePause} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors">
                 <Pause className="w-4 h-4" /> Pause
               </button>
             </div>
           )}
           {status === 'paused' && (
-            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3">
-              <button onClick={handleResume} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2">
+            <div className="bg-gray-900 border-t border-gray-800 px-6 py-3 flex items-center justify-center gap-3 animate-fade-in">
+              <button onClick={handleResume} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors hover:scale-105 active:scale-95">
                 <Play className="w-4 h-4" /> Resume
               </button>
             </div>
@@ -477,7 +555,7 @@ export default function AuctionLive() {
         {/* Sidebar: Teams + Keyboard Shortcuts */}
         <div className="w-96 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
           {/* Team Cards with Shortcuts */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 dark-scrollbar">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Teams</h3>
               <span className="text-xs text-gray-600">{soldCount}/{allPlayers.length} sold</span>
@@ -488,30 +566,30 @@ export default function AuctionLive() {
               return (
                 <div
                   key={team.id}
-                  className={`rounded-lg p-3 border transition-all ${
+                  className={`rounded-lg p-3 border transition-all duration-300 ${
                     isLeading
-                      ? 'bg-yellow-900/30 border-yellow-500/50 shadow-lg shadow-yellow-500/10'
-                      : 'bg-gray-800/50 border-gray-700/50'
+                      ? 'bg-yellow-900/30 border-yellow-500/50 shadow-lg shadow-yellow-500/10 scale-[1.02]'
+                      : 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {showShortcuts && key && (
-                        <kbd className={`px-2 py-1 rounded text-xs font-mono font-bold border ${
+                        <kbd className={`px-2 py-1 rounded text-xs font-mono font-bold border transition-colors ${
                           isLeading ? 'bg-yellow-800 border-yellow-600 text-yellow-300' : 'bg-gray-700 border-gray-600 text-gray-300'
                         }`}>
                           {key}
                         </kbd>
                       )}
                       <div>
-                        <div className={`font-medium text-sm ${isLeading ? 'text-yellow-400' : 'text-gray-200'}`}>
+                        <div className={`font-medium text-sm transition-colors ${isLeading ? 'text-yellow-400' : 'text-gray-200'}`}>
                           {team.short_name || team.name}
                         </div>
                         <div className="text-xs text-gray-500">{formatPrice(team.remaining_budget)}</div>
                       </div>
                     </div>
                     {isLeading && (
-                      <div className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-medium">
+                      <div className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-medium animate-bid-glow">
                         LEADING
                       </div>
                     )}
@@ -522,14 +600,14 @@ export default function AuctionLive() {
           </div>
 
           {/* Bid History */}
-          <div className="border-t border-gray-800 p-4 max-h-48 overflow-y-auto">
+          <div className="border-t border-gray-800 p-4 max-h-48 overflow-y-auto dark-scrollbar">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Bid History</h3>
             {bidEvents.length === 0 ? (
               <p className="text-gray-600 text-xs">No bids yet</p>
             ) : (
               <div className="space-y-1">
                 {bidEvents.map((evt, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
+                  <div key={evt.id} className={`flex items-center justify-between text-xs ${i === 0 ? 'animate-slide-in-right' : ''}`}>
                     <span className={i === 0 ? 'text-green-400 font-medium' : 'text-gray-500'}>
                       {evt.team_short || evt.team_name}
                     </span>

@@ -24,7 +24,7 @@ export default function AuctionPanel() {
 
   if (auctions.length === 0) {
     return (
-      <div>
+      <div className="animate-fade-in">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Auction Panel</h1>
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Gavel className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -41,14 +41,14 @@ export default function AuctionPanel() {
   }
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <h1 className="text-3xl font-bold text-gray-800 mb-8">Auction Panel</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {auctions.map(a => (
           <button
             key={a.id}
             onClick={() => navigate(`/auctions/${a.id}/live`)}
-            className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:border-blue-400 hover:shadow-md transition-all"
+            className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             <div className="flex items-center gap-3 mb-2">
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${

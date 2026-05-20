@@ -17,6 +17,15 @@ class Player(Base):
     image_url = Column(String, nullable=True)
     status = Column(String, default="unsold") # unsold/sold/pending
 
+    # Cricket stats
+    matches = Column(Integer, default=0)
+    runs = Column(Integer, default=0)
+    wickets = Column(Integer, default=0)
+    batting_avg = Column(Float, default=0.0)
+    batting_sr = Column(Float, default=0.0)
+    bowling_avg = Column(Float, default=0.0)
+    bowling_econ = Column(Float, default=0.0)
+
     auction = relationship("Auction", foreign_keys=[auction_id])
     bids = relationship("Bid", back_populates="player")
 

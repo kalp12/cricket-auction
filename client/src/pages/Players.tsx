@@ -37,7 +37,7 @@ export default function Players() {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [form, setForm] = useState({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '' })
+  const [form, setForm] = useState({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '', matches: 0, runs: 0, wickets: 0, batting_avg: 0, batting_sr: 0, bowling_avg: 0, bowling_econ: 0 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -76,7 +76,7 @@ export default function Players() {
 
   const handleEdit = (player: any) => {
     setEditId(player.id)
-    setForm({ name: player.name, role: player.role, country: player.country, base_price: player.base_price, image_url: player.image_url || '' })
+    setForm({ name: player.name, role: player.role, country: player.country, base_price: player.base_price, image_url: player.image_url || '', matches: player.matches || 0, runs: player.runs || 0, wickets: player.wickets || 0, batting_avg: player.batting_avg || 0, batting_sr: player.batting_sr || 0, bowling_avg: player.bowling_avg || 0, bowling_econ: player.bowling_econ || 0 })
     setShowForm(true)
   }
 
@@ -87,7 +87,7 @@ export default function Players() {
 
   const handleCancel = () => {
     setShowForm(false); setEditId(null); setError('')
-    setForm({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '' })
+    setForm({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '', matches: 0, runs: 0, wickets: 0, batting_avg: 0, batting_sr: 0, bowling_avg: 0, bowling_econ: 0 })
   }
 
   const formatPrice = (val: number) => {
@@ -104,7 +104,7 @@ export default function Players() {
   if (loading) return <div className="p-12 text-gray-400 text-center">Loading players...</div>
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <nav className="text-sm text-gray-500 mb-2">
         <span className="text-gray-400">HOME</span>
         <span className="mx-2 text-gray-300">›</span>
@@ -121,7 +121,7 @@ export default function Players() {
           <h1 className="text-3xl font-bold text-gray-800">Player Management</h1>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '' }) }}
+          onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '', matches: 0, runs: 0, wickets: 0, batting_avg: 0, batting_sr: 0, bowling_avg: 0, bowling_econ: 0 }) }}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
