@@ -5,6 +5,9 @@ import {
   ArrowLeft, Users, User, Tags, Pencil, Trash2,
   Link, Copy, Timer, TrendingUp, Palette, History, BarChart3
 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import ConfirmModal from '../components/ConfirmModal'
+import { useConfirm } from '../hooks/useConfirm'
 import { getAuction, updateAuction, deleteAuction } from '../api'
 
 const formatPrice = (val: number) => {
@@ -28,6 +31,7 @@ export default function AuctionDetail() {
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
+  const { confirmState, confirm, cancel } = useConfirm()
 
   useEffect(() => { fetchAuction() }, [id])
 
@@ -46,21 +50,21 @@ export default function AuctionDetail() {
         base_bid: editForm.base_bid, budget_per_team: editForm.budget_per_team,
         min_players: editForm.min_players, max_players: editForm.max_players,
       })
-      setAuction(updated); setEditMode(false)
-    } catch (err: any) { alert(err?.response?.data?.detail || 'Update failed') } finally { setSaving(false) }
+      setAuction(updated); setEditMode(false); toast.success('Auction updated')
+    } catch (err: any) { toast.error(err?.response?.data?.detail || 'Update failed') } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this auction? This cannot be undone.')) return
-    try { await deleteAuction(Number(id)); navigate('/auctions') } catch { alert('Delete failed') }
+    if (!(await confirm({ title: 'Delete Auction', message: 'This cannot be undone. All teams, players, and bid history will be removed.', confirmLabel: 'Delete', danger: true }))) return
+    try { await deleteAuction(Number(id)); toast.success('Auction deleted'); navigate('/auctions') } catch { toast.error('Delete failed') }
   }
 
   const handleDeactivate = async () => {
     const newStatus = auction.status === 'ended' ? 'waiting' : 'ended'
-    try { const updated = await updateAuction(Number(id), { status: newStatus }); setAuction(updated) } catch { alert('Status update failed') }
+    try { const updated = await updateAuction(Number(id), { status: newStatus }); setAuction(updated); toast.success('Status updated') } catch { toast.error('Status update failed') }
   }
 
-  const copyLink = (text: string) => { navigator.clipboard.writeText(text) }
+  const copyLink = (text: string) => { navigator.clipboard.writeText(text); toast.success('Link copied!') }
 
   if (loading) return <div className="text-gray-600 p-12 text-center">Loading...</div>
   if (!auction) return null
@@ -68,6 +72,7 @@ export default function AuctionDetail() {
   const isActive = auction.status !== 'ended'
 
   return (
+    <>
     <div className="animate-fade-in noise-bg relative">
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent-gold/5 rounded-full blur-[100px] pointer-events-none" />
 
@@ -256,5 +261,16 @@ export default function AuctionDetail() {
         </div>
       )}
     </div>
+
+    <ConfirmModal
+      open={confirmState.open}
+      title={confirmState.title}
+      message={confirmState.message}
+      confirmLabel={confirmState.confirmLabel}
+      danger={confirmState.danger}
+      onConfirm={confirmState.onConfirm}
+      onCancel={cancel}
+    />
+  </>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage } from '../api'
 
 interface Slab {
@@ -77,10 +78,10 @@ export default function Settings() {
     try {
       const updated = await updateAuction(Number(auctionId), { [field]: value })
       setAuction(updated)
-      setSaved(true)
+      setSaved(true); toast.success('Setting updated')
       setTimeout(() => setSaved(false), 2000)
     } catch {
-      alert('Update failed')
+      toast.error('Update failed')
     }
   }
 
@@ -121,10 +122,10 @@ export default function Settings() {
       const result = await bulkCreateSlabs(slabsToSave)
       setSlabs(result)
       setEditSlabs(result.map((s: Slab) => ({ ...s })))
-      setSaved(true)
+      setSaved(true); toast.success('Slabs saved')
       setTimeout(() => setSaved(false), 2000)
     } catch (err: any) {
-      alert(err?.response?.data?.detail || 'Failed to save slabs')
+      toast.error(err?.response?.data?.detail || 'Failed to save slabs')
     } finally {
       setSaving(false)
     }
@@ -137,10 +138,10 @@ export default function Settings() {
       const imgRes = await uploadImage(file)
       const updated = await updateAuction(Number(auctionId), { [slotKey]: imgRes.url })
       setAuction(updated)
-      setSaved(true)
+      setSaved(true); toast.success('Sponsor logo uploaded')
       setTimeout(() => setSaved(false), 2000)
     } catch {
-      alert('Image upload failed')
+      toast.error('Image upload failed')
     } finally {
       setUploadingSlot(null)
     }

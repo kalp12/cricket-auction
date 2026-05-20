@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PlusCircle, ArrowLeft, Trash2, Pencil, Calendar, Users, Gavel } from 'lucide-react'
+import toast from 'react-hot-toast'
+import ConfirmModal from '../components/ConfirmModal'
+import { useConfirm } from '../hooks/useConfirm'
 import { listAuctions, deleteAuction } from '../api'
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -20,6 +23,7 @@ const formatPrice = (val: number) => {
 export default function MyAuctions() {
   const navigate = useNavigate()
   const [auctions, setAuctions] = useState<any[]>([])
+  const { confirmState, confirm, cancel } = useConfirm()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { fetchAuctions() }, [])
@@ -37,9 +41,9 @@ export default function MyAuctions() {
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation()
-    if (!window.confirm('Delete this auction? This cannot be undone.')) return
+    if (!(await confirm({ title: 'Delete Auction', message: 'This cannot be undone. All teams, players, and bid history will be removed.', confirmLabel: 'Delete', danger: true }))) return
     try {
-      await deleteAuction(id)
+      await deleteAuction(id); toast.success('Auction deleted')
       setAuctions(prev => prev.filter(a => a.id !== id))
     } catch {
       /* ignore */
@@ -58,6 +62,7 @@ export default function MyAuctions() {
   }
 
   return (
+    <>
     <div className="animate-fade-in relative noise-bg">
       {/* Ambient blur orb */}
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent-gold/5 rounded-full blur-[100px] pointer-events-none" />
@@ -238,5 +243,16 @@ export default function MyAuctions() {
         </div>
       )}
     </div>
+
+    <ConfirmModal
+      open={confirmState.open}
+      title={confirmState.title}
+      message={confirmState.message}
+      confirmLabel={confirmState.confirmLabel}
+      danger={confirmState.danger}
+      onConfirm={confirmState.onConfirm}
+      onCancel={cancel}
+    />
+  </>
   )
 }

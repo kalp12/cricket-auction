@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Upload, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { createAuction, uploadImage } from '../api'
 
 export default function NewAuction() {
@@ -58,7 +59,7 @@ export default function NewAuction() {
         max_players: form.max_players,
         image_url: imageUrl || undefined,
       })
-      navigate(`/auctions/${auction.id}`)
+      navigate(`/auctions/${auction.id}`); toast.success('Auction created!')
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Failed to create auction')
     } finally { setLoading(false) }

@@ -5,6 +5,9 @@ import {
   Users, Plus, Pencil, Trash2, ChevronDown, ChevronUp,
   ArrowLeft, X
 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import ConfirmModal from '../components/ConfirmModal'
+import { useConfirm } from '../hooks/useConfirm'
 import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../api'
 
 export default function Teams() {
@@ -16,6 +19,7 @@ export default function Teams() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ name: '', short_name: '', total_budget: 100000000, max_players: 18, logo_url: '' })
   const [saving, setSaving] = useState(false)
+  const { confirmState, confirm, cancel } = useConfirm()
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [teamRosters, setTeamRosters] = useState<Record<number, any[]>>({})
@@ -47,7 +51,7 @@ export default function Teams() {
       } else {
         await createTeam({ auction_id: aid, name: form.name, short_name: form.short_name, total_budget: form.total_budget, max_players: form.max_players, logo_url: form.logo_url })
       }
-      handleCancel()
+      handleCancel(); toast.success(editId ? 'Team updated' : 'Team added')
       fetchTeams()
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Failed to save')
@@ -61,8 +65,8 @@ export default function Teams() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this team?')) return
-    try { await deleteTeam(id); fetchTeams() } catch { alert('Delete failed') }
+    if (!(await confirm({ title: 'Delete Team', message: 'This team and its roster will be permanently removed.', confirmLabel: 'Delete', danger: true }))) return
+    try { await deleteTeam(id); toast.success('Team deleted'); fetchTeams() } catch { toast.error('Delete failed') }
   }
 
   const handleCancel = () => {
@@ -91,6 +95,7 @@ export default function Teams() {
   )
 
   return (
+    <>
     <div className="animate-fade-in relative">
       {/* Ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
@@ -454,5 +459,16 @@ export default function Teams() {
         </div>
       )}
     </div>
+
+    <ConfirmModal
+      open={confirmState.open}
+      title={confirmState.title}
+      message={confirmState.message}
+      confirmLabel={confirmState.confirmLabel}
+      danger={confirmState.danger}
+      onConfirm={confirmState.onConfirm}
+      onCancel={cancel}
+    />
+  </>
   )
 }

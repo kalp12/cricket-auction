@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   User, Plus, Pencil, Trash2, X, Search, Filter, UserCheck, UserX, Clock, ArrowLeft
 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import ConfirmModal from '../components/ConfirmModal'
+import { useConfirm } from '../hooks/useConfirm'
 import { getPlayers, createPlayer, updatePlayer, deletePlayer } from '../api'
 
 const roles = ['all', 'batsman', 'bowler', 'allrounder', 'wicketkeeper']
@@ -50,6 +53,7 @@ export default function Players() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
+  const { confirmState, confirm, cancel } = useConfirm()
   const [error, setError] = useState('')
 
   const aid = Number(auctionId)
@@ -78,7 +82,7 @@ export default function Players() {
       } else {
         await createPlayer({ auction_id: aid, ...form })
       }
-      handleCancel()
+      handleCancel(); toast.success(editId ? 'Player updated' : 'Player added')
       fetchPlayers()
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Failed to save')
@@ -98,8 +102,8 @@ export default function Players() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this player?')) return
-    try { await deletePlayer(id); fetchPlayers() } catch { alert('Delete failed') }
+    if (!(await confirm({ title: 'Delete Player', message: 'This player will be permanently removed.', confirmLabel: 'Delete', danger: true }))) return
+    try { await deletePlayer(id); toast.success('Player deleted'); fetchPlayers() } catch { toast.error('Delete failed') }
   }
 
   const handleCancel = () => {
@@ -123,6 +127,7 @@ export default function Players() {
   )
 
   return (
+    <>
     <div className="animate-fade-in relative noise-bg">
       <div className="relative z-10">
         {/* Breadcrumb */}
@@ -492,5 +497,16 @@ export default function Players() {
         )}
       </div>
     </div>
+
+    <ConfirmModal
+      open={confirmState.open}
+      title={confirmState.title}
+      message={confirmState.message}
+      confirmLabel={confirmState.confirmLabel}
+      danger={confirmState.danger}
+      onConfirm={confirmState.onConfirm}
+      onCancel={cancel}
+    />
+  </>
   )
 }
