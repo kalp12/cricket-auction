@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, TrendingUp, Users, Trophy, Target, BarChart3 } from 'lucide-react'
 import { getAuctionStats } from '../api'
+import { SkeletonStats } from '../components/ui'
 
 interface Stats {
   overview: { total_players: number; sold: number; unsold: number; total_spent: number; avg_price: number; max_price: number; min_price: number }
@@ -40,7 +41,7 @@ export default function AuctionStats() {
     setLoading(false)
   }
 
-  if (loading) return <div className="p-12 text-gray-600 text-center">Loading stats...</div>
+  if (loading) return <div className="animate-fade-in"><SkeletonStats /></div>
   if (!stats) return <div className="p-12 text-gray-600 text-center">Failed to load stats</div>
 
   const { overview, role_breakdown, country_breakdown, most_expensive, role_avg_price, team_spending, top_batsmen, top_bowlers, highest_base } = stats

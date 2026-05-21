@@ -19,7 +19,7 @@ export const getMe = async () =>
 export const createAuction = async (data: {
   name: string
   timer_seconds?: number
-  timer_enabled?: number
+  timer_mode?: string
   base_bid?: number
   budget_per_team?: number
   min_players?: number
@@ -69,6 +69,9 @@ export const resumeAuction = async (auctionId?: number) =>
 
 export const getAuctionHistory = async (auctionId?: number) =>
   (await axios.get(`${BASE}/api/auction/history`, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const triggerSound = async (auctionId: number, soundKey: string) =>
+  (await axios.post(`${BASE}/api/auction/play-sound`, null, { params: { auction_id: auctionId, sound_key: soundKey }, headers: headers() })).data
 
 // ── Players (scoped to auction) ───────────────────────
 export const getPlayers = async (auctionId: number, params?: { role?: string; status?: string }) =>
@@ -140,3 +143,30 @@ export const uploadImage = async (file: File) => {
   })
   return res.data // { url: "/uploads/abc123.png" }
 }
+
+// ── Audio Upload ──────────────────────────────────────
+export const uploadAudio = async (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/upload/audio`, formData, {
+    headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data // { url: "/uploads/abc123.mp3" }
+}
+
+// ── Player Import ─────────────────────────────────────
+export const downloadPlayerTemplate = async () =>
+  (await axios.get(`${BASE}/api/import/players/template`, { headers: headers(), responseType: 'blob' })).data
+
+export const uploadPlayerFile = async (auctionId: number, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/import/players/upload`, formData, {
+    params: { auction_id: auctionId },
+    headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data // { headers: [...], rows: [...] }
+}
+
+export const importPlayers = async (auctionId: number, mapping: Record<string, string>, rows: any[]) =>
+  (await axios.post(`${BASE}/api/import/players/commit`, { auction_id: auctionId, mapping, rows }, { headers: headers() })).data

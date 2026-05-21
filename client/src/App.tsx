@@ -11,9 +11,11 @@ import Teams from './pages/Teams'
 import Players from './pages/Players'
 import AuctionPanel from './pages/AuctionPanel'
 import AuctionLive from './pages/AuctionLive'
+import AuctionOverlay from './pages/AuctionOverlay'
 import Settings from './pages/Settings'
 import AuctionHistory from './pages/AuctionHistory'
 import AuctionStats from './pages/AuctionStats'
+import PlayerImport from './pages/PlayerImport'
 
 const isAuth = () => !!localStorage.getItem('token')
 
@@ -45,6 +47,8 @@ export default function App() {
       />
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* Broadcast overlay — no auth, no layout, chromeless */}
+        <Route path="/overlay/:auctionId" element={<AuctionOverlay />} />
         <Route
           path="/"
           element={
@@ -60,6 +64,7 @@ export default function App() {
           <Route path="auctions/:id" element={<AuctionDetail />} />
           <Route path="auctions/:auctionId/teams" element={<Teams />} />
           <Route path="auctions/:auctionId/players" element={<Players />} />
+          <Route path="auctions/:auctionId/players/import" element={<PlayerImport />} />
           <Route path="auction-panel" element={<AuctionPanel />} />
           <Route path="auctions/:auctionId/live" element={<AuctionLive />} />
           <Route path="auctions/:auctionId/settings" element={<Settings />} />

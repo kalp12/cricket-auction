@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage } from '../api'
+import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio } from '../api'
+import { SkeletonCard, SkeletonLine } from '../components/ui'
 
 interface Slab {
   id: number
@@ -38,6 +39,20 @@ const SPONSOR_SLOTS = [
   { key: 'sponsor_br', label: 'Bottom-Right' },
 ] as const
 
+const OVERLAY_ASSET_SLOTS = [
+  { key: 'overlay_bg', label: 'Background', accept: 'image/*' },
+  { key: 'sold_stamp', label: 'SOLD Stamp', accept: 'image/*' },
+  { key: 'unsold_stamp', label: 'UNSOLD Stamp', accept: 'image/*' },
+  { key: 'lower_third_banner', label: 'Lower-Third Banner', accept: 'image/*' },
+] as const
+
+const SOUND_SLOTS = [
+  { key: 'sound_gavel', label: 'Gavel Strike' },
+  { key: 'sound_unsold', label: 'Unsold Buzzer' },
+  { key: 'sound_timer', label: 'Timer Alarm' },
+  { key: 'sound_celebration', label: 'Celebration' },
+] as const
+
 export default function Settings() {
   const { auctionId } = useParams<{ auctionId: string }>()
   const navigate = useNavigate()
@@ -55,20 +70,15 @@ export default function Settings() {
     const fetchData = async () => {
       try {
         const [auctionData, slabsData] = await Promise.all([
-          getAuction(Number(auctionId)),
-          getSlabs(Number(auctionId)),
+          getAuction(Number(auctionId)), getSlabs(Number(auctionId)),
         ])
-        setAuction(auctionData)
-        setSlabs(slabsData)
+        setAuction(auctionData); setSlabs(slabsData)
         setEditSlabs(slabsData.length > 0
           ? slabsData.map((s: Slab) => ({ ...s }))
           : DEFAULT_SLABS.map(s => ({ ...s, auction_id: Number(auctionId) }))
         )
-      } catch {
-        navigate('/auctions')
-      } finally {
-        setLoading(false)
-      }
+      } catch { navigate('/auctions') }
+      finally { setLoading(false) }
     }
     fetchData()
   }, [auctionId, navigate])
@@ -77,12 +87,9 @@ export default function Settings() {
     if (!auctionId) return
     try {
       const updated = await updateAuction(Number(auctionId), { [field]: value })
-      setAuction(updated)
-      setSaved(true); toast.success('Setting updated')
+      setAuction(updated); setSaved(true); toast.success('Setting updated')
       setTimeout(() => setSaved(false), 2000)
-    } catch {
-      toast.error('Update failed')
-    }
+    } catch { toast.error('Update failed') }
   }
 
   const updateEditSlab = (index: number, field: string, value: string) => {
@@ -114,41 +121,43 @@ export default function Settings() {
     setSaving(true)
     try {
       const slabsToSave = editSlabs.map(s => ({
-        auction_id: Number(auctionId),
-        min_price: s.min_price,
-        max_price: s.max_price,
-        increment: s.increment,
+        auction_id: Number(auctionId), min_price: s.min_price, max_price: s.max_price, increment: s.increment,
       }))
       const result = await bulkCreateSlabs(slabsToSave)
-      setSlabs(result)
-      setEditSlabs(result.map((s: Slab) => ({ ...s })))
-      setSaved(true); toast.success('Slabs saved')
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to save slabs')
-    } finally {
-      setSaving(false)
-    }
+      setSlabs(result); setEditSlabs(result.map((s: Slab) => ({ ...s })))
+      setSaved(true); toast.success('Slabs saved'); setTimeout(() => setSaved(false), 2000)
+    } catch (err: any) { toast.error(err?.response?.data?.detail || 'Failed to save slabs') }
+    finally { setSaving(false) }
   }
 
-  const handleSponsorUpload = async (slotKey: string, file: File) => {
+  const handleImageUpload = async (slotKey: string, file: File) => {
     if (!auctionId) return
     setUploadingSlot(slotKey)
     try {
       const imgRes = await uploadImage(file)
       const updated = await updateAuction(Number(auctionId), { [slotKey]: imgRes.url })
-      setAuction(updated)
-      setSaved(true); toast.success('Sponsor logo uploaded')
+      setAuction(updated); setSaved(true); toast.success('Image uploaded')
       setTimeout(() => setSaved(false), 2000)
-    } catch {
-      toast.error('Image upload failed')
-    } finally {
-      setUploadingSlot(null)
-    }
+    } catch { toast.error('Image upload failed') }
+    finally { setUploadingSlot(null) }
+  }
+
+  const handleAudioUpload = async (slotKey: string, file: File) => {
+    if (!auctionId) return
+    setUploadingSlot(slotKey)
+    try {
+      const audioRes = await uploadAudio(file)
+      const updated = await updateAuction(Number(auctionId), { [slotKey]: audioRes.url })
+      setAuction(updated); setSaved(true); toast.success('Sound uploaded')
+      setTimeout(() => setSaved(false), 2000)
+    } catch { toast.error('Audio upload failed') }
+    finally { setUploadingSlot(null) }
   }
 
   if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-white/40 font-display text-2xl tracking-wider">LOADING...</div>
   if (!auction) return null
+
+  const assetUrl = (url: string | null | undefined) => url ? `http://localhost:8000${url}` : null
 
   return (
     <div className="animate-fade-in noise-bg min-h-screen bg-surface-0 p-6 md:p-8">
@@ -165,18 +174,11 @@ export default function Settings() {
 
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => navigate(`/auctions/${auctionId}`)}
-          className="text-white/30 hover:text-accent-gold transition-colors"
-        >
+        <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-white/30 hover:text-accent-gold transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="font-display text-4xl tracking-wider gradient-text">SETTINGS</h1>
-        {saved && (
-          <span className="ml-3 text-emerald-400 text-sm font-semibold tracking-wide animate-fade-in">
-            ✓ Saved
-          </span>
-        )}
+        {saved && <span className="ml-3 text-emerald-400 text-sm font-semibold tracking-wide animate-fade-in">✓ Saved</span>}
       </div>
 
       {/* Auction Rules */}
@@ -185,60 +187,35 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">BUDGET PER TEAM</label>
-            <input
-              type="number"
-              value={auction.budget_per_team}
-              onChange={e => handleAuctionUpdate('budget_per_team', Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
-            />
+            <input type="number" value={auction.budget_per_team} onChange={e => handleAuctionUpdate('budget_per_team', Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all" />
           </div>
           <div>
             <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">BASE BID</label>
-            <input
-              type="number"
-              value={auction.base_bid}
-              onChange={e => handleAuctionUpdate('base_bid', Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
-            />
+            <input type="number" value={auction.base_bid} onChange={e => handleAuctionUpdate('base_bid', Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all" />
           </div>
           <div>
             <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">TIMER DURATION (SECONDS)</label>
-            <input
-              type="number"
-              value={auction.timer_seconds}
-              onChange={e => handleAuctionUpdate('timer_seconds', Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
-            />
+            <input type="number" value={auction.timer_seconds} onChange={e => handleAuctionUpdate('timer_seconds', Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all" />
           </div>
-          <div className="flex items-center gap-4 pt-7">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={auction.timer_enabled === 1}
-                onChange={e => handleAuctionUpdate('timer_enabled', e.target.checked ? 1 : 0)}
-                className="sr-only peer"
-              />
-              <div className="w-12 h-6 bg-white/10 rounded-full peer peer-checked:bg-accent-gold/80 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-6 after:shadow-md"></div>
-            </label>
-            <span className="text-sm text-white/50 font-display tracking-wider">ENABLE TIMER</span>
+          <div>
+            <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">TIMER MODE</label>
+            <select
+              value={auction.timer_mode || 'auto'}
+              onChange={e => handleAuctionUpdate('timer_mode', e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
+            >
+              <option value="auto">Auto — starts on each player</option>
+              <option value="manual">Manual — operator starts timer</option>
+              <option value="off">Off — no timer</option>
+            </select>
           </div>
           <div>
             <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">MIN PLAYERS PER TEAM</label>
-            <input
-              type="number"
-              value={auction.min_players}
-              onChange={e => handleAuctionUpdate('min_players', Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
-            />
+            <input type="number" value={auction.min_players} onChange={e => handleAuctionUpdate('min_players', Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all" />
           </div>
           <div>
             <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">MAX PLAYERS PER TEAM</label>
-            <input
-              type="number"
-              value={auction.max_players}
-              onChange={e => handleAuctionUpdate('max_players', Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all"
-            />
+            <input type="number" value={auction.max_players} onChange={e => handleAuctionUpdate('max_players', Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all" />
           </div>
         </div>
       </div>
@@ -247,18 +224,11 @@ export default function Settings() {
       <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-display text-xl tracking-wider text-accent-gold">BID INCREMENT SLABS</h2>
-          <button
-            onClick={resetToDefaults}
-            className="text-xs tracking-wider text-white/40 hover:text-accent-gold font-display flex items-center gap-1.5 transition-colors"
-          >
+          <button onClick={resetToDefaults} className="text-xs tracking-wider text-white/40 hover:text-accent-gold font-display flex items-center gap-1.5 transition-colors">
             <RotateCcw className="w-3.5 h-3.5" /> RESET TO IPL DEFAULTS
           </button>
         </div>
-
-        <p className="text-sm text-white/30 mb-5">
-          When the current bid falls within a price range, the increment is added to calculate the next valid bid.
-        </p>
-
+        <p className="text-sm text-white/30 mb-5">When the current bid falls within a price range, the increment is added to calculate the next valid bid.</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -274,40 +244,20 @@ export default function Settings() {
               {editSlabs.map((slab, index) => (
                 <tr key={index} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                   <td className="py-2 px-3">
-                    <input
-                      type="text"
-                      value={formatPrice(slab.min_price)}
-                      onChange={e => updateEditSlab(index, 'min_price', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all"
-                    />
+                    <input type="text" value={formatPrice(slab.min_price)} onChange={e => updateEditSlab(index, 'min_price', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all" />
                   </td>
                   <td className="py-2 px-3">
-                    <input
-                      type="text"
-                      value={formatPrice(slab.max_price)}
-                      onChange={e => updateEditSlab(index, 'max_price', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all"
-                    />
+                    <input type="text" value={formatPrice(slab.max_price)} onChange={e => updateEditSlab(index, 'max_price', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all" />
                   </td>
                   <td className="py-2 px-3">
-                    <input
-                      type="text"
-                      value={formatPrice(slab.increment)}
-                      onChange={e => updateEditSlab(index, 'increment', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all"
-                    />
+                    <input type="text" value={formatPrice(slab.increment)} onChange={e => updateEditSlab(index, 'increment', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none text-sm transition-all" />
                   </td>
                   <td className="py-2 px-3 text-white/25 text-xs whitespace-nowrap">
                     {formatPrice(slab.min_price)} — {formatPrice(slab.max_price)}: +{formatPrice(slab.increment)}
                   </td>
                   <td className="py-2 px-3">
                     {editSlabs.length > 1 && (
-                      <button
-                        onClick={() => removeSlab(index)}
-                        className="text-white/20 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => removeSlab(index)} className="text-white/20 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                     )}
                   </td>
                 </tr>
@@ -315,81 +265,118 @@ export default function Settings() {
             </tbody>
           </table>
         </div>
-
         <div className="flex items-center justify-between mt-5">
-          <button
-            onClick={addSlab}
-            className="text-xs tracking-wider text-white/40 hover:text-accent-gold font-display flex items-center gap-1.5 transition-colors"
-          >
+          <button onClick={addSlab} className="text-xs tracking-wider text-white/40 hover:text-accent-gold font-display flex items-center gap-1.5 transition-colors">
             <Plus className="w-3.5 h-3.5" /> ADD SLAB
           </button>
-
-          <button
-            onClick={saveSlabs}
-            disabled={saving}
-            className="bg-gradient-to-r from-accent-gold to-amber-500 text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 disabled:opacity-50 transition-all hover:shadow-lg hover:shadow-accent-gold/20"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Slabs'}
+          <button onClick={saveSlabs} disabled={saving} className="bg-gradient-to-r from-accent-gold to-amber-500 text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 disabled:opacity-50 transition-all hover:shadow-lg hover:shadow-accent-gold/20">
+            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Slabs'}
           </button>
         </div>
       </div>
 
       {/* Sponsor Corner Logos */}
-      <div className="glass-strong rounded-2xl p-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">SPONSOR CORNER LOGOS</h2>
-        <p className="text-sm text-white/30 mb-6">
-          Upload sponsor logos to display in the four corners of the live auction screen.
-        </p>
-
+        <p className="text-sm text-white/30 mb-6">Upload sponsor logos to display in the four corners of the live auction screen and broadcast overlay.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {SPONSOR_SLOTS.map(({ key, label }) => {
-            const imageUrl = auction[key] ? `http://localhost:8000${auction[key]}` : null
+            const imageUrl = assetUrl(auction[key])
             const isUploading = uploadingSlot === key
-
             return (
               <div key={key} className="relative group">
-                <label className="text-xs tracking-wider text-white/40 font-display mb-2 block text-center">
-                  {label.replace('-', ' ‑ ').toUpperCase()}
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={el => { fileRefs.current[key] = el }}
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) handleSponsorUpload(key, file)
-                  }}
-                />
-                <button
-                  onClick={() => fileRefs.current[key]?.click()}
-                  disabled={isUploading}
-                  className="w-full aspect-square rounded-xl bg-surface-2 border border-white/5 hover:border-accent-gold/30 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden disabled:opacity-50"
-                >
+                <label className="text-xs tracking-wider text-white/40 font-display mb-2 block text-center">{label.replace('-', ' ‑ ').toUpperCase()}</label>
+                <input type="file" accept="image/*" ref={el => { fileRefs.current[key] = el }} className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) handleImageUpload(key, file) }} />
+                <button onClick={() => fileRefs.current[key]?.click()} disabled={isUploading} className="w-full aspect-square rounded-xl bg-surface-2 border border-white/5 hover:border-accent-gold/30 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden disabled:opacity-50">
                   {isUploading ? (
                     <div className="w-6 h-6 border-2 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
                   ) : imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt={`${label} sponsor`}
-                      className="w-full h-full object-contain p-2"
-                    />
+                    <img src={imageUrl} alt={`${label} sponsor`} className="w-full h-full object-contain p-2" />
                   ) : (
-                    <>
-                      <Upload className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" />
-                      <span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD</span>
-                    </>
+                    <><Upload className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD</span></>
                   )}
                 </button>
                 {imageUrl && !isUploading && (
-                  <button
-                    onClick={() => fileRefs.current[key]?.click()}
-                    className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all"
-                    title="Replace image"
-                  >
-                    <Upload className="w-3 h-3" />
-                  </button>
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace image"><Upload className="w-3 h-3" /></button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Broadcast Overlay Assets */}
+      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
+        <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">BROADCAST OVERLAY</h2>
+        <p className="text-sm text-white/30 mb-6">Upload custom graphics for the broadcast overlay page (used as OBS Browser Source). Leave empty for defaults.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {OVERLAY_ASSET_SLOTS.map(({ key, label, accept }) => {
+            const imageUrl = assetUrl(auction[key])
+            const isUploading = uploadingSlot === key
+            return (
+              <div key={key} className="relative group">
+                <label className="text-xs tracking-wider text-white/40 font-display mb-2 block text-center">{label.toUpperCase()}</label>
+                <input type="file" accept={accept} ref={el => { fileRefs.current[key] = el }} className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) handleImageUpload(key, file) }} />
+                <button onClick={() => fileRefs.current[key]?.click()} disabled={isUploading} className="w-full aspect-video rounded-xl bg-surface-2 border border-white/5 hover:border-accent-gold/30 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden disabled:opacity-50">
+                  {isUploading ? (
+                    <div className="w-6 h-6 border-2 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
+                  ) : imageUrl ? (
+                    <img src={imageUrl} alt={label} className="w-full h-full object-cover p-1 rounded-lg" />
+                  ) : (
+                    <><Image className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD</span></>
+                  )}
+                </button>
+                {imageUrl && !isUploading && (
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {/* Overlay link */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-3">
+          <span className="text-xs text-white/40 font-display tracking-wider">OVERLAY URL:</span>
+          <code className="text-xs text-accent-gold bg-surface-2 px-3 py-1.5 rounded-lg border border-white/5">
+            {window.location.origin}/overlay/{auctionId}
+          </code>
+          <button
+            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/overlay/${auctionId}`)}
+            className="text-xs text-white/40 hover:text-accent-gold font-display tracking-wider transition-colors"
+          >
+            COPY
+          </button>
+        </div>
+      </div>
+
+      {/* Sound Effects */}
+      <div className="glass-strong rounded-2xl p-6 border border-white/[0.08]">
+        <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">SOUND EFFECTS</h2>
+        <p className="text-sm text-white/30 mb-6">Upload custom audio clips for auction events. Leave empty for default sounds.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {SOUND_SLOTS.map(({ key, label }) => {
+            const hasFile = !!auction[key]
+            const isUploading = uploadingSlot === key
+            return (
+              <div key={key} className="relative group">
+                <label className="text-xs tracking-wider text-white/40 font-display mb-2 block text-center">{label.toUpperCase()}</label>
+                <input type="file" accept="audio/*" ref={el => { fileRefs.current[key] = el }} className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) handleAudioUpload(key, file) }} />
+                <button onClick={() => fileRefs.current[key]?.click()} disabled={isUploading} className="w-full aspect-square rounded-xl bg-surface-2 border border-white/5 hover:border-accent-gold/30 flex flex-col items-center justify-center gap-2 transition-all disabled:opacity-50">
+                  {isUploading ? (
+                    <div className="w-6 h-6 border-2 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
+                  ) : hasFile ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <Volume2 className="w-8 h-8 text-accent-gold" />
+                      <span className="text-[10px] text-white/40 font-display tracking-wider">UPLOADED</span>
+                      {auction[key] && (
+                        <audio controls src={`http://localhost:8000${auction[key]}`} className="w-full px-2 mt-1" style={{ height: 28 }} />
+                                )}
+                                </div>
+                                ) : (
+                    <><Volume2 className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD MP3</span></>
+                  )}
+                </button>
+                {hasFile && !isUploading && (
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
                 )}
               </div>
             )

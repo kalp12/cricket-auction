@@ -13,6 +13,7 @@ from routes.auctions import router as auctions_router
 from routes.slabs import router as slabs_router
 from routes.upload import router as upload_router
 from routes.stats import router as stats_router
+from routes.import_players import router as import_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -30,6 +31,7 @@ app.add_middleware(
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
 
+
 # Migrate: add missing columns to existing tables
 def run_migrations():
     migrations = [
@@ -45,9 +47,20 @@ def run_migrations():
         ("auctions", "sponsor_tr", "ALTER TABLE auctions ADD COLUMN sponsor_tr VARCHAR"),
         ("auctions", "sponsor_bl", "ALTER TABLE auctions ADD COLUMN sponsor_bl VARCHAR"),
         ("auctions", "sponsor_br", "ALTER TABLE auctions ADD COLUMN sponsor_br VARCHAR"),
+        ("auctions", "timer_mode", "ALTER TABLE auctions ADD COLUMN timer_mode VARCHAR DEFAULT 'auto'"),
+        ("auctions", "overlay_bg", "ALTER TABLE auctions ADD COLUMN overlay_bg VARCHAR"),
+        ("auctions", "sold_stamp", "ALTER TABLE auctions ADD COLUMN sold_stamp VARCHAR"),
+        ("auctions", "unsold_stamp", "ALTER TABLE auctions ADD COLUMN unsold_stamp VARCHAR"),
+        ("auctions", "lower_third_banner", "ALTER TABLE auctions ADD COLUMN lower_third_banner VARCHAR"),
+        ("auctions", "sound_gavel", "ALTER TABLE auctions ADD COLUMN sound_gavel VARCHAR"),
+        ("auctions", "sound_unsold", "ALTER TABLE auctions ADD COLUMN sound_unsold VARCHAR"),
+        ("auctions", "sound_timer", "ALTER TABLE auctions ADD COLUMN sound_timer VARCHAR"),
+        ("auctions", "sound_celebration", "ALTER TABLE auctions ADD COLUMN sound_celebration VARCHAR"),
     ]
+
     db = SessionLocal()
     try:
+        # Add missing columns
         for table, column, alter_sql in migrations:
             result = db.execute(text(
                 "SELECT column_name FROM information_schema.columns "
@@ -57,11 +70,28 @@ def run_migrations():
                 db.execute(text(alter_sql))
                 db.commit()
                 print(f"Migration: added {column} to {table}")
+
+        # Migrate timer_enabled → timer_mode for existing rows
+        result = db.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'auctions' AND column_name = 'timer_enabled'"
+        ))
+        if result.fetchone() is not None:
+            db.execute(text(
+                "UPDATE auctions SET timer_mode = CASE "
+                "WHEN timer_enabled = 1 THEN 'auto' "
+                "ELSE 'off' END "
+                "WHERE timer_mode IS NULL OR timer_mode = ''"
+            ))
+            db.execute(text("ALTER TABLE auctions DROP COLUMN timer_enabled"))
+            db.commit()
+            print("Migration: converted timer_enabled to timer_mode")
     except Exception as e:
         print(f"Migration error: {e}")
         db.rollback()
     finally:
         db.close()
+
 
 run_migrations()
 
@@ -78,6 +108,7 @@ app.include_router(auctions_router, prefix="/api/auctions", tags=["auctions"])
 app.include_router(slabs_router, prefix="/api/slabs", tags=["slabs"])
 app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
 app.include_router(stats_router, prefix="/api", tags=["stats"])
+app.include_router(import_router, prefix="/api/import", tags=["import"])
 app.include_router(bids_router, tags=["websocket"])
 
 

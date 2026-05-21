@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from db.database import get_db
-from models.models import Auction, Player
+from models.models import Auction, Player, Team
 from schemas.auctions import AuctionSchema, AuctionCreate, AuctionUpdate
 from auth.auth import get_current_user
+from routes.bids import manager as ws_manager
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ def create_auction(auction: AuctionCreate, db: Session = Depends(get_db), curren
         name=auction.name,
         status="waiting",
         timer_seconds=auction.timer_seconds,
-        timer_enabled=auction.timer_enabled,
+        timer_mode=auction.timer_mode,
         base_bid=auction.base_bid,
         budget_per_team=auction.budget_per_team,
         min_players=auction.min_players,
@@ -72,7 +73,7 @@ def delete_auction(auction_id: int, db: Session = Depends(get_db), current_user:
 
 
 @router.post("/{auction_id}/start", status_code=status.HTTP_200_OK)
-def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Start an auction (admin only)"""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -83,11 +84,23 @@ def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: 
 
     db_auction.status = "live"
     db.commit()
+
+    await ws_manager.broadcast(auction_id, {
+        "type": "state",
+        "auction_id": auction_id,
+        "status": "live",
+        "current_bid": db_auction.current_bid,
+        "current_player_id": db_auction.current_player_id,
+        "current_team_id": db_auction.current_team_id,
+        "timer_seconds": db_auction.timer_seconds,
+        "timer_mode": db_auction.timer_mode,
+    })
+
     return {"message": "Auction started successfully"}
 
 
 @router.post("/{auction_id}/next-player", status_code=status.HTTP_200_OK)
-def next_player(auction_id: int, random_select: bool = Query(True), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def next_player(auction_id: int, random_select: bool = Query(True), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """Move to next player in auction. Default: random selection. Use random_select=false for sequential."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -115,6 +128,17 @@ def next_player(auction_id: int, random_select: bool = Query(True), db: Session 
     if not candidates:
         db_auction.status = "ended"
         db.commit()
+        await ws_manager.broadcast(auction_id, {
+            "type": "state",
+            "auction_id": auction_id,
+            "status": "ended",
+            "current_bid": 0,
+            "current_player_id": None,
+            "current_team_id": None,
+            "timer_seconds": 0,
+            "current_player": None,
+            "current_team": None,
+        })
         return {"message": "No more players. Auction ended."}
 
     # Pick random or sequential
@@ -128,6 +152,37 @@ def next_player(auction_id: int, random_select: bool = Query(True), db: Session 
     db_auction.current_team_id = None
     db_auction.status = "live"
     db.commit()
+
+    # Broadcast to all connected WebSocket clients
+    team_data = None
+    player_data = {
+        "id": next_p.id,
+        "name": next_p.name,
+        "role": next_p.role,
+        "country": next_p.country,
+        "base_price": next_p.base_price,
+        "image_url": next_p.image_url,
+        "matches": next_p.matches,
+        "runs": next_p.runs,
+        "wickets": next_p.wickets,
+        "batting_avg": next_p.batting_avg,
+        "batting_sr": next_p.batting_sr,
+        "bowling_avg": next_p.bowling_avg,
+        "bowling_econ": next_p.bowling_econ,
+    }
+
+    await ws_manager.broadcast(auction_id, {
+        "type": "next_player",
+        "auction_id": auction_id,
+        "status": "live",
+        "current_bid": next_p.base_price,
+        "current_player_id": next_p.id,
+        "current_team_id": None,
+        "timer_seconds": db_auction.timer_seconds,
+        "timer_mode": db_auction.timer_mode,
+        "current_player": player_data,
+        "current_team": team_data,
+    })
 
     return {
         "message": "Next player set successfully",

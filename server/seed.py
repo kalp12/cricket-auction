@@ -17,7 +17,7 @@ db.commit()
 
 # Create auction first
 auction = Auction(name="IPL Demo Auction", status="waiting", current_bid=0, timer_seconds=60,
-                  timer_enabled=1, base_bid=1000000, budget_per_team=100000000,
+                  timer_mode="auto", base_bid=1000000, budget_per_team=100000000,
                   min_players=5, max_players=18)
 db.add(auction)
 db.flush()

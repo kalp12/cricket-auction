@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
 import { getAuction, updateAuction, deleteAuction } from '../api'
+import { SkeletonLine, SkeletonCircle, SkeletonCard, SkeletonGrid } from '../components/ui'
 
 const formatPrice = (val: number) => {
   if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`
@@ -46,7 +47,7 @@ export default function AuctionDetail() {
     setSaving(true)
     try {
       const updated = await updateAuction(Number(id), {
-        name: editForm.name, timer_seconds: editForm.timer_seconds, timer_enabled: editForm.timer_enabled,
+        name: editForm.name, timer_seconds: editForm.timer_seconds, timer_mode: editForm.timer_mode,
         base_bid: editForm.base_bid, budget_per_team: editForm.budget_per_team,
         min_players: editForm.min_players, max_players: editForm.max_players,
       })
@@ -66,7 +67,13 @@ export default function AuctionDetail() {
 
   const copyLink = (text: string) => { navigator.clipboard.writeText(text); toast.success('Link copied!') }
 
-  if (loading) return <div className="text-gray-600 p-12 text-center">Loading...</div>
+  if (loading) return (
+    <div className="p-6 space-y-6 animate-fade-in">
+      <div className="flex items-center gap-4 mb-6"><SkeletonCircle size="56px" /><div className="space-y-2"><SkeletonLine width="200px" height="36px" /><SkeletonLine width="120px" height="16px" /></div></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><SkeletonCard /><SkeletonCard /></div>
+    </div>
+    )
   if (!auction) return null
 
   const isActive = auction.status !== 'ended'
@@ -176,7 +183,7 @@ export default function AuctionDetail() {
         {[
           { label: 'Budget per Team', value: formatPrice(auction.budget_per_team) },
           { label: 'Base Bid', value: formatPrice(auction.base_bid) },
-          { label: 'Timer', value: auction.timer_enabled ? `${auction.timer_seconds}s` : 'Off' },
+          { label: 'Timer', value: (auction.timer_mode || 'auto') === 'off' ? 'Off' : `${auction.timer_seconds}s (${auction.timer_mode || 'auto'})` },
           { label: 'Players', value: `${auction.min_players}–${auction.max_players}` },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="glass-strong rounded-2xl p-5">
@@ -220,7 +227,7 @@ export default function AuctionDetail() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><Timer className="w-4 h-4 text-gray-500" /><p className="text-sm text-gray-400">Timer</p></div>
-              <span className={`text-xs px-2 py-1 rounded-lg font-medium border ${auction.timer_enabled ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>{auction.timer_enabled ? `ON (${auction.timer_seconds}s)` : 'OFF'}</span>
+              <span className={`text-xs px-2 py-1 rounded-lg font-medium border ${(auction.timer_mode || 'auto') === 'off' ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>{(auction.timer_mode || 'auto') === 'off' ? 'OFF' : `${(auction.timer_mode || 'auto').toUpperCase()} (${auction.timer_seconds}s)`}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-gray-500" /><p className="text-sm text-gray-400">Bid Increments</p></div>

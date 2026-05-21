@@ -16,6 +16,7 @@ class AuctionResponse(BaseModel):
     current_team_id: Optional[int] = None
     current_team_name: Optional[str] = None
     timer_seconds: int
+    timer_mode: str = "auto"
 
 
 class AuctionStateResponse(BaseModel):

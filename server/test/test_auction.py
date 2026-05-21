@@ -11,7 +11,7 @@ from db.database import Base, get_db
 from models.models import Player, Auction, Team, TeamPlayer, Bid  # noqa: F401
 from auth.auth import get_current_user, create_access_token
 
-# In-memory SQLite for tests — StaticPool shares one connection across the pool
+# In-memory SQLite for tests
 test_engine = create_engine(
     "sqlite:///:memory:",
     connect_args={"check_same_thread": False},
@@ -38,23 +38,26 @@ app.dependency_overrides[get_current_user] = lambda: fake_user
 
 client = TestClient(app)
 
+# Shared auction ID for tests
+AUCTION_ID = 1
+
 
 def _auth_headers():
     return {"Authorization": "Bearer test-token"}
 
 
 def _seed_auction():
-    """Create the initial auction record (routes assume one exists)."""
+    """Create the initial auction record."""
     db = TestSessionLocal()
     if not db.query(Auction).first():
-        auction = Auction(status="waiting", current_bid=0, timer_seconds=60)
+        auction = Auction(id=AUCTION_ID, status="waiting", current_bid=0, timer_seconds=60, timer_mode="auto")
         db.add(auction)
         db.commit()
     db.close()
 
 
 def _reset_auction():
-    """Reset auction to waiting state so tests don't block each other."""
+    """Reset auction to waiting state."""
     db = TestSessionLocal()
     auction = db.query(Auction).first()
     if auction:
@@ -81,9 +84,10 @@ def test_login_fail_wrong_user():
 
 
 def test_create_player():
+    _seed_auction()
     response = client.post(
         "/api/players",
-        json={"name": "Test Player", "role": "batsman", "country": "India", "base_price": 100000},
+        json={"auction_id": AUCTION_ID, "name": "Test Player", "role": "batsman", "country": "India", "base_price": 100000},
         headers=_auth_headers()
     )
     assert response.status_code == 200
@@ -92,15 +96,17 @@ def test_create_player():
 
 
 def test_get_players():
-    response = client.get("/api/players", headers=_auth_headers())
+    _seed_auction()
+    response = client.get("/api/players", params={"auction_id": AUCTION_ID}, headers=_auth_headers())
     assert response.status_code == 200
     assert response.json()["total"] >= 1
 
 
 def test_create_team():
+    _seed_auction()
     response = client.post(
         "/api/teams",
-        json={"name": "Test Team", "total_budget": 10000000, "max_players": 15},
+        json={"auction_id": AUCTION_ID, "name": "Test Team", "total_budget": 10000000, "max_players": 15},
         headers=_auth_headers()
     )
     assert response.status_code == 200
@@ -112,7 +118,7 @@ def test_start_auction():
     _seed_auction()
     _reset_auction()
     player_res = client.post("/api/players",
-        json={"name": "Auction Player", "role": "allrounder", "country": "India", "base_price": 200000},
+        json={"auction_id": AUCTION_ID, "name": "Auction Player", "role": "allrounder", "country": "India", "base_price": 200000},
         headers=_auth_headers()
     )
     player_id = player_res.json()["id"]
@@ -130,11 +136,11 @@ def test_place_bid():
     _seed_auction()
     _reset_auction()
     player_res = client.post("/api/players",
-        json={"name": "Bid Player", "role": "batsman", "country": "India", "base_price": 100000},
+        json={"auction_id": AUCTION_ID, "name": "Bid Player", "role": "batsman", "country": "India", "base_price": 100000},
         headers=_auth_headers()
     )
     team_res = client.post("/api/teams",
-        json={"name": "Bid Team", "total_budget": 5000000},
+        json={"auction_id": AUCTION_ID, "name": "Bid Team", "total_budget": 5000000},
         headers=_auth_headers()
     )
     player_id = player_res.json()["id"]
@@ -157,11 +163,11 @@ def test_mark_sold():
     _seed_auction()
     _reset_auction()
     player_res = client.post("/api/players",
-        json={"name": "Sold Player", "role": "bowler", "country": "England", "base_price": 100000},
+        json={"auction_id": AUCTION_ID, "name": "Sold Player", "role": "bowler", "country": "England", "base_price": 100000},
         headers=_auth_headers()
     )
     team_res = client.post("/api/teams",
-        json={"name": "Sold Team", "total_budget": 5000000},
+        json={"auction_id": AUCTION_ID, "name": "Sold Team", "total_budget": 5000000},
         headers=_auth_headers()
     )
     player_id = player_res.json()["id"]
@@ -176,7 +182,10 @@ def test_mark_sold():
         headers=_auth_headers()
     )
 
-    sold_res = client.post("/api/auction/sold", headers=_auth_headers())
+    sold_res = client.post("/api/auction/sold",
+        params={"auction_id": AUCTION_ID},
+        headers=_auth_headers()
+    )
     assert sold_res.status_code == 200
     assert "sold" in sold_res.json()["message"].lower()
 
@@ -185,7 +194,7 @@ def test_mark_unsold():
     _seed_auction()
     _reset_auction()
     player_res = client.post("/api/players",
-        json={"name": "Unsold Player", "role": "wicketkeeper", "country": "India", "base_price": 100000},
+        json={"auction_id": AUCTION_ID, "name": "Unsold Player", "role": "wicketkeeper", "country": "India", "base_price": 100000},
         headers=_auth_headers()
     )
     player_id = player_res.json()["id"]
@@ -195,7 +204,10 @@ def test_mark_unsold():
         headers=_auth_headers()
     )
 
-    unsold_res = client.post("/api/auction/unsold", headers=_auth_headers())
+    unsold_res = client.post("/api/auction/unsold",
+        params={"auction_id": AUCTION_ID},
+        headers=_auth_headers()
+    )
     assert unsold_res.status_code == 200
 
 

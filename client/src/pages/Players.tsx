@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  User, Plus, Pencil, Trash2, X, Search, Filter, UserCheck, UserX, Clock, ArrowLeft
+  User, Plus, Pencil, Trash2, X, Search, Filter, UserCheck, UserX, Clock, ArrowLeft, FileSpreadsheet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, RoleBadge, StatusBadge } from '../components/ui'
+import { Button, Card, Input, RoleBadge, StatusBadge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle } from '../components/ui'
 import { getPlayers, createPlayer, updatePlayer, deletePlayer } from '../api'
 
 const roles = ['all', 'batsman', 'bowler', 'allrounder', 'wicketkeeper']
@@ -131,8 +131,12 @@ export default function Players() {
               <p className="text-sm text-gray-500 mt-1">{filtered.length} players in this auction</p>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            <Button variant="gold" icon={<FileSpreadsheet className="w-4 h-4" />} onClick={() => navigate("/auctions/" + aid + "/players/import")}
+              className="bg-surface-3 hover:bg-surface-4 text-white/60 !shadow-none border border-white/5">Import</Button>
           <Button variant="gold" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ ...emptyForm }) }}
             className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold !shadow-none border border-accent-gold/20">Add Player</Button>
+          </div>
         </div>
 
         <AnimatePresence>

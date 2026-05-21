@@ -16,7 +16,7 @@ export default function NewAuction() {
   const [form, setForm] = useState({
     name: '',
     timer_seconds: 60,
-    timer_enabled: 1,
+    timer_mode: 'auto',
     base_bid: 1000000,
     budget_per_team: 100000000,
     min_players: 5,
@@ -52,7 +52,7 @@ export default function NewAuction() {
       const auction = await createAuction({
         name: form.name,
         timer_seconds: form.timer_seconds,
-        timer_enabled: form.timer_enabled,
+        timer_mode: form.timer_mode,
         base_bid: form.base_bid,
         budget_per_team: form.budget_per_team,
         min_players: form.min_players,
@@ -168,15 +168,17 @@ export default function NewAuction() {
           <div className="flex items-start gap-6">
             <label className="w-40 text-sm font-medium text-gray-400 pt-2">Timer</label>
             <div className="flex-1 flex items-center gap-4">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={form.timer_enabled === 1} onChange={e => set('timer_enabled', e.target.checked ? 1 : 0)} className="sr-only peer" />
-                <div className="w-11 h-6 bg-surface-3 rounded-full peer peer-checked:bg-accent-gold transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-              </label>
-              {form.timer_enabled === 1 && (
+              <select value={form.timer_mode} onChange={e => set('timer_mode', e.target.value)}
+                className="px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none">
+                <option value="auto">Auto — starts on each player</option>
+                <option value="manual">Manual — operator starts</option>
+                <option value="off">Off — no timer</option>
+              </select>
+              {form.timer_mode !== 'off' && (
                 <input type="number" value={form.timer_seconds} onChange={e => set('timer_seconds', Number(e.target.value))}
                   className="w-24 px-3 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white text-center focus:ring-2 focus:ring-accent-gold/50 outline-none" />
               )}
-              <span className="text-sm text-gray-500">{form.timer_enabled ? 'seconds' : 'Off'}</span>
+              {form.timer_mode !== 'off' && <span className="text-sm text-gray-500">seconds</span>}
             </div>
           </div>
 

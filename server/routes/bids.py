@@ -58,6 +58,39 @@ async def websocket_endpoint(
     await manager.connect(auction_id, websocket)
 
     try:
+        # Send initial state with full auction data for overlay
+        player_data = None
+        if auction.current_player_id:
+            from models.models import Player
+            p = db.query(Player).filter(Player.id == auction.current_player_id).first()
+            if p:
+                player_data = {
+                    "id": p.id,
+                    "name": p.name,
+                    "role": p.role,
+                    "country": p.country,
+                    "base_price": p.base_price,
+                    "image_url": p.image_url,
+                    "matches": p.matches,
+                    "runs": p.runs,
+                    "wickets": p.wickets,
+                    "batting_avg": p.batting_avg,
+                    "batting_sr": p.batting_sr,
+                    "bowling_avg": p.bowling_avg,
+                    "bowling_econ": p.bowling_econ,
+                }
+
+        team_data = None
+        if auction.current_team_id:
+            t = db.query(Team).filter(Team.id == auction.current_team_id).first()
+            if t:
+                team_data = {
+                    "id": t.id,
+                    "name": t.name,
+                    "short_name": t.short_name,
+                    "logo_url": t.logo_url,
+                }
+
         await websocket.send_text(json.dumps({
             "type": "state",
             "auction_id": auction_id,
@@ -65,7 +98,17 @@ async def websocket_endpoint(
             "current_bid": auction.current_bid,
             "current_player_id": auction.current_player_id,
             "current_team_id": auction.current_team_id,
-            "timer_seconds": auction.timer_seconds
+            "timer_seconds": auction.timer_seconds,
+            "timer_mode": auction.timer_mode,
+            "current_player": player_data,
+            "current_team": team_data,
+            "overlay_bg": auction.overlay_bg,
+            "sold_stamp": auction.sold_stamp,
+            "unsold_stamp": auction.unsold_stamp,
+            "sponsor_tl": auction.sponsor_tl,
+            "sponsor_tr": auction.sponsor_tr,
+            "sponsor_bl": auction.sponsor_bl,
+            "sponsor_br": auction.sponsor_br,
         }))
 
         while True:
@@ -136,17 +179,17 @@ async def websocket_endpoint(
                 db.add(bid)
                 auction.current_bid = amount
                 auction.current_team_id = team_id
-                # Reset timer to auction's configured duration
-                timer_val = auction.timer_seconds if auction.timer_enabled else 30
-                auction.timer_seconds = timer_val
+                # Reset timer on new bid (only in auto mode)
+                timer_val = auction.timer_seconds if auction.timer_mode == "auto" else 0
                 db.commit()
 
                 await manager.broadcast(auction_id, {
                     "type": "bid_update",
                     "team_id": team_id,
                     "team_name": team.name,
+                    "team_short": team.short_name,
                     "amount": amount,
-                    "timer_seconds": timer_val
+                    "timer_seconds": timer_val,
                 })
 
             elif msg.get("type") == "ping":

@@ -45,7 +45,8 @@ async def start_auction(
         current_bid=auction.current_bid,
         current_team_id=None,
         current_team_name=None,
-        timer_seconds=auction.timer_seconds
+        timer_seconds=auction.timer_seconds,
+        timer_mode=auction.timer_mode,
     )
 
 
@@ -113,7 +114,8 @@ async def place_bid(
         current_bid=auction.current_bid,
         current_team_id=auction.current_team_id,
         current_team_name=team.name,
-        timer_seconds=auction.timer_seconds
+        timer_seconds=auction.timer_seconds,
+        timer_mode=auction.timer_mode,
     )
 
 
@@ -177,6 +179,7 @@ async def mark_sold(
         raise HTTPException(status_code=500, detail=str(e))
 
     db.refresh(auction)
+    db.refresh(winning_team)
     next_player_name = None
     if auction.current_player_id:
         np = db.query(Player).filter(Player.id == auction.current_player_id).first()
@@ -185,12 +188,16 @@ async def mark_sold(
     await ws_manager.broadcast(auction.id, {
         "type": "sold",
         "player_name": player.name,
+        "player_id": player.id,
         "team_name": winning_team.name,
+        "team_short": winning_team.short_name,
+        "team_id": winning_team.id,
         "price": sold_price,
         "current_player_id": auction.current_player_id,
         "current_player_name": next_player_name,
         "current_bid": auction.current_bid,
         "status": auction.status,
+        "play_sound": "gavel",
     })
 
     return {
@@ -255,10 +262,12 @@ async def mark_unsold(
     await ws_manager.broadcast(auction.id, {
         "type": "unsold",
         "player_name": player.name,
+        "player_id": player.id,
         "current_player_id": auction.current_player_id,
         "current_player_name": next_player_name,
         "current_bid": auction.current_bid,
         "status": auction.status,
+        "play_sound": "unsold",
     })
 
     return {
@@ -306,7 +315,8 @@ async def pause_auction(
         current_bid=auction.current_bid,
         current_team_id=auction.current_team_id,
         current_team_name=auction.current_team.name if auction.current_team_id else None,
-        timer_seconds=auction.timer_seconds
+        timer_seconds=auction.timer_seconds,
+        timer_mode=auction.timer_mode,
     )
 
 
@@ -346,8 +356,28 @@ async def resume_auction(
         current_bid=auction.current_bid,
         current_team_id=auction.current_team_id,
         current_team_name=auction.current_team.name if auction.current_team_id else None,
-        timer_seconds=auction.timer_seconds
+        timer_seconds=auction.timer_seconds,
+        timer_mode=auction.timer_mode,
     )
+
+
+@router.post("/play-sound")
+async def trigger_sound(
+    sound_key: str = Query(..., description="Sound key: gavel, unsold, timer, celebration"),
+    auction_id: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    if not auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "play_sound",
+        "sound_key": sound_key,
+    })
+
+    return {"message": f"Sound '{sound_key}' triggered"}
 
 
 @router.get("/state", response_model=AuctionStateResponse)
@@ -421,6 +451,7 @@ async def get_auction_state(
             "current_bid": auction.current_bid,
             "current_team_id": auction.current_team_id,
             "timer_seconds": auction.timer_seconds,
+            "timer_mode": auction.timer_mode,
             "sold_count": sold_count,
             "unsold_count": unsold_count
         },

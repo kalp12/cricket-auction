@@ -11,11 +11,11 @@ class Player(Base):
     id = Column(Integer, primary_key=True, index=True)
     auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
     name = Column(String, nullable=False)
-    role = Column(String, nullable=False) # batsman/bowler/allrounder/wicketkeeper
+    role = Column(String, nullable=False)  # batsman/bowler/allrounder/wicketkeeper
     country = Column(String, nullable=False)
     base_price = Column(Float, nullable=False)
     image_url = Column(String, nullable=True)
-    status = Column(String, default="unsold") # unsold/sold/pending
+    status = Column(String, default="unsold")  # unsold/sold/pending
 
     # Cricket stats
     matches = Column(Integer, default=0)
@@ -63,14 +63,14 @@ class Auction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, default="Untitled Auction")
-    status = Column(String, default="waiting") # waiting/live/paused/ended
+    status = Column(String, default="waiting")  # waiting/live/paused/ended
     current_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     current_bid = Column(Float, default=0)
     current_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     timer_seconds = Column(Integer, default=60)
-    timer_enabled = Column(Integer, default=1) # 1=on, 0=off
-    base_bid = Column(Float, default=1000000) # 10 lakh default
-    budget_per_team = Column(Float, default=100000000) # 100 crore
+    timer_mode = Column(String, default="auto")  # auto/manual/off
+    base_bid = Column(Float, default=1000000)  # 10 lakh default
+    budget_per_team = Column(Float, default=100000000)  # 100 crore
     min_players = Column(Integer, default=5)
     max_players = Column(Integer, default=18)
     image_url = Column(String, nullable=True)
@@ -80,6 +80,18 @@ class Auction(Base):
     sponsor_tr = Column(String, nullable=True)  # top-right
     sponsor_bl = Column(String, nullable=True)  # bottom-left
     sponsor_br = Column(String, nullable=True)  # bottom-right
+
+    # Custom overlay assets
+    overlay_bg = Column(String, nullable=True)
+    sold_stamp = Column(String, nullable=True)
+    unsold_stamp = Column(String, nullable=True)
+    lower_third_banner = Column(String, nullable=True)
+
+    # Sound effects (file URLs)
+    sound_gavel = Column(String, nullable=True)
+    sound_unsold = Column(String, nullable=True)
+    sound_timer = Column(String, nullable=True)
+    sound_celebration = Column(String, nullable=True)
 
     current_player = relationship("Player", foreign_keys=[current_player_id])
     current_team = relationship("Team", foreign_keys=[current_team_id])

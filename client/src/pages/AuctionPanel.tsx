@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Gavel, Zap } from 'lucide-react'
 import { listAuctions } from '../api'
+import { SkeletonGrid } from '../components/ui'
 
 const statusStyles: Record<string, string> = {
   live: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -24,7 +25,7 @@ export default function AuctionPanel() {
     fetchAuctions()
   }, [])
 
-  if (loading) return <div className="p-12 text-gray-600 text-center">Loading...</div>
+  if (loading) return <div className="animate-fade-in pt-4"><SkeletonGrid count={3} /></div>
 
   if (auctions.length === 0) {
     return (

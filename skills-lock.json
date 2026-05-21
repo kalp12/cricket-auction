@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "joy-delight": {
+      "source": "dylantarre/animation-principles",
+      "sourceType": "github",
+      "skillPath": "skills/06-by-emotional-outcome/joy-delight/SKILL.md",
+      "computedHash": "3d25d1cb168326441d10c6085a0080262fb7005668981e6f7aafcf5401ea483a"
+    },
+    "playfulness-fun": {
+      "source": "dylantarre/animation-principles",
+      "sourceType": "github",
+      "skillPath": "skills/06-by-emotional-outcome/playfulness-fun/SKILL.md",
+      "computedHash": "08f06b0cf3fa6a102796415d9c47391d8432d2c4c562b937066f292242e17e0f"
+    }
+  }
+}

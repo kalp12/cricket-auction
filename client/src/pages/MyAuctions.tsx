@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
 import { listAuctions, deleteAuction } from '../api'
+import { SkeletonGrid } from '../components/ui'
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   waiting: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Waiting' },

@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, Badge } from '../components/ui'
+import { Button, Card, Input, Badge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle } from '../components/ui'
 import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../api'
 
 export default function Teams() {

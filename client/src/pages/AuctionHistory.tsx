@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, History, Users, TrendingUp, Search } from 'lucide-react'
 import { getAuctionHistory, getTeams } from '../api'
+import { SkeletonTable } from '../components/ui'
 
 interface HistoryEntry {
   player: string
@@ -56,7 +57,7 @@ export default function AuctionHistory() {
   const teamSpending: Record<string, number> = {}
   history.forEach(e => { teamSpending[e.team] = (teamSpending[e.team] || 0) + e.price })
 
-  if (loading) return <div className="p-12 text-gray-600 text-center">Loading history...</div>
+  if (loading) return <div className="animate-fade-in"><SkeletonTable rows={6} cols={5} /></div>
 
   return (
     <div className="animate-fade-in noise-bg relative">
