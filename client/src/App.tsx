@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import AuctionHistory from './pages/AuctionHistory'
 import AuctionStats from './pages/AuctionStats'
 import PlayerImport from './pages/PlayerImport'
+import CommandPalette from './components/CommandPalette'
 
 const isAuth = () => !!localStorage.getItem('token')
 
@@ -45,6 +46,7 @@ export default function App() {
           },
         }}
       />
+      <CommandPalette />
       <Routes>
         <Route path="/login" element={<Login />} />
         {/* Broadcast overlay — no auth, no layout, chromeless */}

@@ -114,13 +114,13 @@ cd client && npm test
 - [x] SOLD confetti fireworks + gavel animation + pulse ring overlay
 - [x] Sponsor corner logos (4 positions) on auction live page + settings UI
 - [x] Dark mode / light mode toggle
-- [ ] Responsive mobile-first design
+- [x] Responsive mobile-first design
 - [x] Reusable component library (Button, Card, Input, Badge, Table, Modal)
 - [x] Skeleton loading states (replace "Loading..." text)
 - [x] Data visualization with charts (recharts) on Stats page
 - [x] Empty states with illustrations (no players, no teams, no bids yet)
 - [x] Toast notifications (react-hot-toast) instead of alert() calls
-- [ ] Command palette / quick search (cmd+k)
+- [x] Command palette / quick search (cmd+k)
 
 ### Player Registration (Google Form-like)
 - [ ] Public player registration page (no login required) — form with name, role, country, base_price, stats, photo upload
