@@ -309,12 +309,12 @@ export default function AuctionLive() {
   return (
     <div className="min-h-screen bg-surface-0 text-white relative overflow-hidden noise-bg">
       {/* Top Bar */}
-      <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-6 py-3 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-500 hover:text-white transition-colors">
+      <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-3 flex items-center justify-between relative z-10">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-500 hover:text-white transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-display text-2xl tracking-wide">{auction?.name || 'AUCTION'}</h1>
+          <h1 className="font-display text-lg md:text-2xl tracking-wide truncate">{auction?.name || 'AUCTION'}</h1>
           <motion.span
             key={status}
             initial={{ scale: 1.4, opacity: 0 }}
@@ -327,9 +327,9 @@ export default function AuctionLive() {
           >
             {status}
           </motion.span>
-          <span className="text-sm text-gray-500">{soldCount}/{allPlayers.length} sold</span>
+          <span className="text-sm text-gray-500 shrink-0 hidden sm:inline">{soldCount}/{allPlayers.length} sold</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           {/* Open Overlay button */}
           <button
             onClick={() => window.open(`/overlay/${auctionId}`, '_blank', 'width=1920,height=1080')}
@@ -352,7 +352,7 @@ export default function AuctionLive() {
               {notificationsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
           )}
-          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-500 hover:text-white transition-colors shrink-0">
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -390,9 +390,9 @@ export default function AuctionLive() {
         )}
       </AnimatePresence>
 
-      <div className="flex h-[calc(100vh-56px)]">
+      <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
         {/* Main: Current player + controls */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-0">
           {/* Player info area */}
           <div className="flex-1 flex items-center justify-center">
             {currentPlayer ? (
@@ -406,18 +406,18 @@ export default function AuctionLive() {
                 <div className="text-gray-500 text-sm mb-1 uppercase tracking-widest">
                   {currentPlayer.role} — {currentPlayer.country}
                 </div>
-                <h2 className="font-display text-5xl tracking-wide text-white mb-1">{currentPlayer.name}</h2>
+                <h2 className="font-display text-3xl md:text-5xl tracking-wide text-white mb-1">{currentPlayer.name}</h2>
                 <div className="text-gray-600 text-sm mb-4">Base: {formatPrice(currentPlayer.base_price)}</div>
 
                 {/* Bid display */}
-                <div className="glass-strong rounded-2xl px-10 py-6 inline-block">
+                <div className="glass-strong rounded-2xl px-6 md:px-10 py-4 md:py-6 inline-block">
                   <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
                   <motion.div
                     key={currentBid}
                     initial={{ scale: 1.3, opacity: 0.5 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
-                    className="text-5xl font-bold gradient-text"
+                    className="text-3xl md:text-5xl font-bold gradient-text"
                   >
                     {formatPrice(currentBid)}
                   </motion.div>
@@ -479,7 +479,7 @@ export default function AuctionLive() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex items-center justify-center gap-4"
+              className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-4 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-center gap-2 md:gap-4"
             >
               <motion.button onClick={handleNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
                 <Shuffle className="w-4 h-4" /> Next
@@ -505,7 +505,7 @@ export default function AuctionLive() {
         </div>
 
         {/* Sidebar: Teams + Bid History */}
-        <div className="w-80 bg-surface-1/40 backdrop-blur-lg border-l border-white/5 flex flex-col overflow-hidden">
+        <div className="w-full lg:w-80 bg-surface-1/40 backdrop-blur-lg border-l-0 lg:border-l border-t lg:border-t-0 border-white/5 flex flex-col max-h-[50vh] lg:max-h-none overflow-hidden">
           {/* Team cards — clickable for bidding */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2 dark-scrollbar">
             <div className="flex items-center justify-between mb-2 px-1">
@@ -533,7 +533,7 @@ export default function AuctionLive() {
                   } disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
                       {showShortcuts && key && (
                         <kbd className={`px-2 py-1 rounded-lg text-xs font-mono font-bold border ${
                           isLeading ? 'bg-accent-gold/20 border-accent-gold/40 text-accent-gold' : 'bg-surface-3 border-white/10 text-gray-400'

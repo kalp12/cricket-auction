@@ -8,9 +8,11 @@ import {
   LogOut,
   Trophy,
   Sun,
-  Moon
+  Moon,
+  X
 } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
+import { useSidebar } from './DashboardLayout'
 
 const links = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,24 +24,38 @@ const links = [
 export default function Sidebar() {
   const navigate = useNavigate()
   const { isDark, toggleTheme } = useTheme()
+  const { setOpen } = useSidebar()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
     navigate('/login')
   }
 
+  const handleNav = () => {
+    setOpen(false)
+  }
+
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-72 bg-surface-0 border-r border-white/5 flex flex-col z-50 noise-bg">
-      {/* Logo */}
+    <aside className="w-72 h-full bg-surface-0 border-r border-white/5 flex flex-col noise-bg">
+      {/* Logo + mobile close */}
       <div className="px-6 py-6 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-gold to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Trophy className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-gold to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Trophy className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-display text-xl tracking-wide text-white">CRICKET AUCTION</h1>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Admin Panel</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-xl tracking-wide text-white">CRICKET AUCTION</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Admin Panel</p>
-          </div>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setOpen(false)}
+            className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -49,6 +65,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={handleNav}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
               isActive

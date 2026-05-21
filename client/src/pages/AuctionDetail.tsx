@@ -95,7 +95,7 @@ export default function AuctionDetail() {
         <button onClick={() => navigate('/auctions')} className="text-gray-500 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-display text-5xl tracking-wide text-white">{auction.name}</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wide text-white">{auction.name}</h1>
       </div>
 
       {/* Summary Card */}

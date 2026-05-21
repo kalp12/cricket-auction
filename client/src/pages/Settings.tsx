@@ -177,7 +177,7 @@ export default function Settings() {
         <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-white/30 hover:text-accent-gold transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-display text-4xl tracking-wider gradient-text">SETTINGS</h1>
+        <h1 className="font-display text-3xl md:text-4xl tracking-wider gradient-text">SETTINGS</h1>
         {saved && <span className="ml-3 text-emerald-400 text-sm font-semibold tracking-wide animate-fade-in">✓ Saved</span>}
       </div>
 

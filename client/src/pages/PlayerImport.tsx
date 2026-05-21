@@ -132,7 +132,7 @@ export default function PlayerImport() {
         <button onClick={() => navigate(`/auctions/${auctionId}/players`)} className="text-white/30 hover:text-accent-gold transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-display text-4xl tracking-wider gradient-text">IMPORT PLAYERS</h1>
+        <h1 className="font-display text-3xl md:text-4xl tracking-wider gradient-text">IMPORT PLAYERS</h1>
       </div>
 
       {/* Step indicator */}

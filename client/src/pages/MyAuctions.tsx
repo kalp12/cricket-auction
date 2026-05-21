@@ -87,7 +87,7 @@ export default function MyAuctions() {
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
           <div>
-            <h1 className="font-display text-4xl tracking-wide gradient-text">MY AUCTIONS</h1>
+            <h1 className="font-display text-3xl md:text-4xl tracking-wide gradient-text">MY AUCTIONS</h1>
             <p className="text-gray-500 text-sm mt-1">{auctions.length} auction{auctions.length !== 1 ? 's' : ''} created</p>
           </div>
         </div>

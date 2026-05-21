@@ -62,6 +62,9 @@
 :root.light .sponsor-slot { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
 :root.light .sponsor-slot:hover { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); }
 
+/* Light mode: toast overrides (react-hot-toast uses inline styles via CSS vars, but this catches any fixed classes) */
+:root.light [data-sonner-toaster] { --gray0: #111827; --gray1: #1f2937; --gray2: #374151; }
+
 body {
   font-family: 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;

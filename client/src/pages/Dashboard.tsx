@@ -45,7 +45,7 @@ export default function Dashboard() {
       </nav>
 
       <div className="mb-10">
-        <h1 className="font-display text-5xl tracking-wide text-white mb-2">DASHBOARD</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wide text-white mb-2">DASHBOARD</h1>
         <p className="text-gray-500">Manage your cricket auctions from one place</p>
       </div>
 

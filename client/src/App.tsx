@@ -31,17 +31,17 @@ export default function App() {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#1a1f2e',
-            color: '#e5e7eb',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--bg-surface-2)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--glass-border)',
             borderRadius: '12px',
             fontSize: '14px',
           },
           success: {
-            iconTheme: { primary: '#22c55e', secondary: '#1a1f2e' },
+            iconTheme: { primary: '#22c55e', secondary: 'var(--bg-surface-2)' },
           },
           error: {
-            iconTheme: { primary: '#ef4444', secondary: '#1a1f2e' },
+            iconTheme: { primary: '#ef4444', secondary: 'var(--bg-surface-2)' },
           },
         }}
       />

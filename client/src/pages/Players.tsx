@@ -127,7 +127,7 @@ export default function Players() {
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="md" icon={<ArrowLeft className="w-5 h-5" />} onClick={() => navigate(`/auctions/${aid}`)} className="w-10 h-10 !px-0 !py-0" />
             <div>
-              <h1 className="text-4xl font-display gradient-text tracking-wide">PLAYER MANAGEMENT</h1>
+              <h1 className="text-3xl md:text-4xl font-display gradient-text tracking-wide">PLAYER MANAGEMENT</h1>
               <p className="text-sm text-gray-500 mt-1">{filtered.length} players in this auction</p>
             </div>
           </div>

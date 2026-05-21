@@ -83,7 +83,7 @@ export default function NewAuction() {
         <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-display text-5xl tracking-wide gradient-text">NEW AUCTION</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wide gradient-text">NEW AUCTION</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-2xl">

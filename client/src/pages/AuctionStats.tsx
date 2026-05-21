@@ -117,7 +117,7 @@ export default function AuctionStats() {
 
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => navigate(`/auctions/${aid}`)} className="text-gray-500 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="font-display text-5xl tracking-wide gradient-text">AUCTION STATS</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wide gradient-text">AUCTION STATS</h1>
       </div>
 
       {/* Overview Cards */}

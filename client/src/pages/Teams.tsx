@@ -111,7 +111,7 @@ export default function Teams() {
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="md" icon={<ArrowLeft className="w-5 h-5" />} onClick={() => navigate(`/auctions/${aid}`)} className="w-10 h-10 !px-0 !py-0" />
-          <h1 className="font-display text-4xl tracking-wide gradient-text">TEAM MANAGEMENT</h1>
+          <h1 className="font-display text-3xl md:text-4xl tracking-wide gradient-text">TEAM MANAGEMENT</h1>
         </div>
         <Button variant="emerald" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', short_name: '', total_budget: 100000000, max_players: 18, logo_url: '' }) }}>Add Team</Button>
       </div>
