@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Gavel, Zap } from 'lucide-react'
 import { listAuctions } from '../api'
-import { SkeletonGrid } from '../components/ui'
+import { SkeletonGrid, EmptyState } from '../components/ui'
 
 const statusStyles: Record<string, string> = {
   live: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -31,18 +31,12 @@ export default function AuctionPanel() {
     return (
       <div className="animate-fade-in">
         <h1 className="font-display text-5xl tracking-wide text-white mb-8">AUCTION PANEL</h1>
-        <div className="glass-strong rounded-2xl p-12 text-center max-w-lg">
-          <Gavel className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-500 mb-4">No auctions yet. Create one first.</p>
-          <motion.button
-            onClick={() => navigate('/auctions/new')}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-gradient-to-r from-accent-gold to-amber-500 text-black font-bold px-6 py-2.5 rounded-xl"
-          >
-            Create Auction
-          </motion.button>
-        </div>
+        <EmptyState
+          icon={Gavel}
+          title="No auctions yet"
+          message="Create your first auction to start bidding!"
+          action={{ label: 'Create Auction', onClick: () => navigate('/auctions/new') }}
+        />
       </div>
     )
   }

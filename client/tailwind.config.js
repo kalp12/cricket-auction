@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
@@ -24,11 +25,11 @@ module.exports = {
           900: '#364fc7',
         },
         surface: {
-          0: '#0b0f1a',
-          1: '#111827',
-          2: '#1a2035',
-          3: '#222942',
-          4: '#2c3350',
+          0: 'var(--bg-base)',
+          1: 'var(--bg-surface-1)',
+          2: 'var(--bg-surface-2)',
+          3: 'var(--bg-surface-3)',
+          4: 'var(--bg-surface-4)',
         },
         accent: {
           gold: '#fbbf24',

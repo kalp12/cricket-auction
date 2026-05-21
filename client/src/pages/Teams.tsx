@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, Badge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle } from '../components/ui'
+import { Button, Card, Input, Badge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle, EmptyState } from '../components/ui'
 import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../api'
 
 export default function Teams() {
@@ -158,15 +158,12 @@ export default function Teams() {
       </AnimatePresence>
 
       {teams.length === 0 ? (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card padding="lg" className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-surface-3 flex items-center justify-center mx-auto mb-5">
-              <Users className="w-8 h-8 text-gray-600" />
-            </div>
-            <p className="text-gray-400 mb-6 text-lg">No teams yet. Add your first team to get started.</p>
-            <Button variant="emerald" icon={<Plus className="w-4 h-4" />} onClick={() => setShowForm(true)}>Add Team</Button>
-          </Card>
-        </motion.div>
+        <EmptyState
+          icon={Users}
+          title="No teams yet"
+          message="Add your first team to get started."
+          action={{ label: 'Add Team', onClick: () => setShowForm(true) }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
           {teams.map((team, index) => {

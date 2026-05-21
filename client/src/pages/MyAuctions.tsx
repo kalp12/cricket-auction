@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
 import { listAuctions, deleteAuction } from '../api'
-import { SkeletonGrid } from '../components/ui'
+import { SkeletonGrid, EmptyState } from '../components/ui'
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   waiting: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Waiting' },
@@ -104,28 +104,12 @@ export default function MyAuctions() {
 
       {/* Empty state */}
       {auctions.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-strong rounded-2xl p-16 text-center max-w-lg mx-auto"
-        >
-          <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-6">
-            <Gavel className="w-10 h-10 text-gray-600" />
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">No auctions yet</h3>
-          <p className="text-gray-500 mb-8 text-sm">Create your first auction to start bidding!</p>
-          <motion.button
-            onClick={() => navigate('/auctions/new')}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            className="bg-gradient-to-r from-amber-500 to-orange-600 text-black font-semibold px-6 py-2.5 rounded-xl shadow-lg shadow-amber-500/20"
-          >
-            <span className="flex items-center gap-2">
-              <PlusCircle className="w-4 h-4" />
-              Create Auction
-            </span>
-          </motion.button>
-        </motion.div>
+        <EmptyState
+          icon={Gavel}
+          title="No auctions yet"
+          message="Create your first auction to start bidding!"
+          action={{ label: 'Create Auction', onClick: () => navigate('/auctions/new') }}
+        />
       ) : (
         /* Card grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

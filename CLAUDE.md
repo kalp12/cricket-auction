@@ -113,13 +113,13 @@ cd client && npm test
 - [x] Better typography and spacing system (Bebas Neue display, Outfit body, JetBrains Mono)
 - [x] SOLD confetti fireworks + gavel animation + pulse ring overlay
 - [x] Sponsor corner logos (4 positions) on auction live page + settings UI
-- [ ] Dark mode / light mode toggle
+- [x] Dark mode / light mode toggle
 - [ ] Responsive mobile-first design
-- [ ] Reusable component library (Button, Card, Input, Badge, Table, Modal)
-- [ ] Skeleton loading states (replace "Loading..." text)
-- [ ] Data visualization with charts (recharts or chart.js) on Stats page
-- [ ] Empty states with illustrations (no players, no teams, no bids yet)
-- [ ] Toast notifications (react-hot-toast) instead of alert() calls
+- [x] Reusable component library (Button, Card, Input, Badge, Table, Modal)
+- [x] Skeleton loading states (replace "Loading..." text)
+- [x] Data visualization with charts (recharts) on Stats page
+- [x] Empty states with illustrations (no players, no teams, no bids yet)
+- [x] Toast notifications (react-hot-toast) instead of alert() calls
 - [ ] Command palette / quick search (cmd+k)
 
 ### Player Registration (Google Form-like)

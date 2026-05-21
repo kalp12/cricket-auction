@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, RoleBadge, StatusBadge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle } from '../components/ui'
+import { Button, Card, Input, RoleBadge, StatusBadge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle, EmptyState } from '../components/ui'
 import { getPlayers, createPlayer, updatePlayer, deletePlayer } from '../api'
 
 const roles = ['all', 'batsman', 'bowler', 'allrounder', 'wicketkeeper']
@@ -231,16 +231,12 @@ export default function Players() {
         </Card>
 
         {filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <Card padding="lg" className="text-center">
-              <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center mx-auto mb-5">
-                <User className="w-8 h-8 text-gray-600" />
-              </div>
-              <p className="text-gray-400 mb-5">No players found. Add some or adjust filters.</p>
-              <Button variant="gold" icon={<Plus className="w-4 h-4" />} onClick={() => setShowForm(true)}
-                className="bg-accent-gold/15 hover:bg-accent-gold/25 !text-accent-gold border border-accent-gold/20 !shadow-none">Add Player</Button>
-            </Card>
-          </motion.div>
+        <EmptyState
+          icon={User}
+          title="No players found"
+          message="Add some players or adjust your filters."
+          action={{ label: 'Add Player', onClick: () => setShowForm(true) }}
+        />
         ) : (
           <Card padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">

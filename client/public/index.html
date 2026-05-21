@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+  <script>
+    (function() {
+      var t = localStorage.getItem('cricket-auction-theme') || 'dark';
+      document.documentElement.classList.add(t);
+    })();
+  </script>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />

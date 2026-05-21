@@ -6,8 +6,11 @@ import {
   Briefcase,
   Gavel,
   LogOut,
-  Trophy
+  Trophy,
+  Sun,
+  Moon
 } from 'lucide-react'
+import { useTheme } from '../hooks/useTheme'
 
 const links = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,6 +21,7 @@ const links = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const { isDark, toggleTheme } = useTheme()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -47,9 +51,9 @@ export default function Sidebar() {
             to={to}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                isActive
-                  ? 'bg-white/10 text-white shadow-lg shadow-white/5 border border-white/10'
-                  : 'text-gray-500 hover:bg-white/5 hover:text-gray-300 border border-transparent'
+              isActive
+                ? 'bg-white/10 text-white shadow-lg shadow-white/5 border border-white/10'
+                : 'text-gray-500 hover:bg-white/5 hover:text-gray-300 border border-transparent'
               }`
             }
           >
@@ -70,8 +74,15 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Logout */}
-      <div className="px-4 py-4 border-t border-white/5">
+      {/* Theme Toggle + Logout */}
+      <div className="px-4 py-4 border-t border-white/5 space-y-1">
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-white/5 hover:text-gray-300 w-full transition-all duration-200"
+        >
+          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {isDark ? 'Light Mode' : 'Dark Mode'}
+        </button>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-rose-500/10 hover:text-rose-400 w-full transition-all duration-200"

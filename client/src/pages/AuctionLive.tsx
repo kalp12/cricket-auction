@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
-  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff
+  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp
 } from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound } from '../api'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
+import { EmptyState } from '../components/ui'
 import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
 import toast from 'react-hot-toast'
 
@@ -561,7 +562,7 @@ export default function AuctionLive() {
           <div className="border-t border-white/5 p-3 max-h-40 overflow-y-auto dark-scrollbar">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Bid History</h3>
             {bidEvents.length === 0 ? (
-              <p className="text-gray-700 text-xs">No bids yet</p>
+                <EmptyState icon={TrendingUp} title="No bids yet" message="Waiting for the first bid..." className="py-2" />
             ) : (
               <div className="space-y-1">
                 {bidEvents.map((evt, i) => (
