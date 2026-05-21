@@ -1,0 +1,28 @@
+# Videos and large media
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Logs
+logs/
+
+# Environment
+.env
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Skills
+skills-lock.json
+.agents/
