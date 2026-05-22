@@ -92,6 +92,7 @@ class Auction(Base):
     sound_unsold = Column(String, nullable=True)
     sound_timer = Column(String, nullable=True)
     sound_celebration = Column(String, nullable=True)
+    registration_open = Column(Integer, default=0)  # 0=closed, 1=open
 
     current_player = relationship("Player", foreign_keys=[current_player_id])
     current_team = relationship("Team", foreign_keys=[current_team_id])
@@ -125,3 +126,27 @@ class Bid(Base):
     auction = relationship("Auction", back_populates="bids")
     team = relationship("Team", back_populates="bids")
     player = relationship("Player", back_populates="bids")
+
+
+
+class Registration(Base):
+    __tablename__ = "registrations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
+    name = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    country = Column(String, nullable=False)
+    base_price = Column(Float, nullable=False)
+    image_url = Column(String, nullable=True)
+    matches = Column(Integer, default=0)
+    runs = Column(Integer, default=0)
+    wickets = Column(Integer, default=0)
+    batting_avg = Column(Float, default=0.0)
+    batting_sr = Column(Float, default=0.0)
+    bowling_avg = Column(Float, default=0.0)
+    bowling_econ = Column(Float, default=0.0)
+    status = Column(String, default="pending")  # pending/approved/rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    auction = relationship("Auction", foreign_keys=[auction_id])

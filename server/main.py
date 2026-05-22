@@ -14,6 +14,7 @@ from routes.slabs import router as slabs_router
 from routes.upload import router as upload_router
 from routes.stats import router as stats_router
 from routes.import_players import router as import_router
+from routes.registration import router as registration_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -55,7 +56,7 @@ def run_migrations():
         ("auctions", "sound_gavel", "ALTER TABLE auctions ADD COLUMN sound_gavel VARCHAR"),
         ("auctions", "sound_unsold", "ALTER TABLE auctions ADD COLUMN sound_unsold VARCHAR"),
         ("auctions", "sound_timer", "ALTER TABLE auctions ADD COLUMN sound_timer VARCHAR"),
-        ("auctions", "sound_celebration", "ALTER TABLE auctions ADD COLUMN sound_celebration VARCHAR"),
+        ("auctions", "sound_celebration", "ALTER TABLE auctions ADD COLUMN sound_celebration VARCHAR"),        ("auctions", "registration_open", "ALTER TABLE auctions ADD COLUMN registration_open INTEGER DEFAULT 0"),
     ]
 
     db = SessionLocal()
@@ -109,6 +110,7 @@ app.include_router(slabs_router, prefix="/api/slabs", tags=["slabs"])
 app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
 app.include_router(stats_router, prefix="/api", tags=["stats"])
 app.include_router(import_router, prefix="/api/import", tags=["import"])
+app.include_router(registration_router, prefix="/api/registration", tags=["registration"])
 app.include_router(bids_router, tags=["websocket"])
 
 

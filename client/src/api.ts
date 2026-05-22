@@ -170,3 +170,22 @@ export const uploadPlayerFile = async (auctionId: number, file: File) => {
 
 export const importPlayers = async (auctionId: number, mapping: Record<string, string>, rows: any[]) =>
   (await axios.post(`${BASE}/api/import/players/commit`, { auction_id: auctionId, mapping, rows }, { headers: headers() })).data
+
+// ── Player Registration ───────────────────────────────
+export const submitRegistration = async (auctionId: number, data: any) =>
+  (await axios.post(`${BASE}/api/registration/${auctionId}/submit`, data)).data
+
+export const getRegistrationStatus = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/registration/${auctionId}/status`)).data
+
+export const listRegistrations = async (auctionId: number, status?: string) =>
+  (await axios.get(`${BASE}/api/registration/${auctionId}/list`, { params: status ? { status } : {}, headers: headers() })).data
+
+export const approveRegistration = async (registrationId: number) =>
+  (await axios.post(`${BASE}/api/registration/${registrationId}/approve`, null, { headers: headers() })).data
+
+export const rejectRegistration = async (registrationId: number) =>
+  (await axios.post(`${BASE}/api/registration/${registrationId}/reject`, null, { headers: headers() })).data
+
+export const toggleRegistration = async (auctionId: number) =>
+  (await axios.post(`${BASE}/api/registration/${auctionId}/toggle`, null, { headers: headers() })).data
