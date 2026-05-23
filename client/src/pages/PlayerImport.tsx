@@ -115,7 +115,7 @@ export default function PlayerImport() {
   )
 
   return (
-    <div className="animate-fade-in noise-bg min-h-screen bg-surface-0 p-6 md:p-8">
+    <div className="animate-fade-in noise-bg min-h-screen bg-surface-0">
       {/* Breadcrumb */}
       <nav className="text-xs tracking-widest font-display mb-6 text-white/30">
         <span className="text-white/40 hover:text-accent-gold cursor-pointer transition-colors" onClick={() => navigate('/dashboard')}>HOME</span>
@@ -136,7 +136,7 @@ export default function PlayerImport() {
       </div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex flex-wrap items-center gap-3 mb-8">
         {(['upload', 'mapping', 'preview', 'done'] as Step[]).map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border ${
@@ -154,7 +154,7 @@ export default function PlayerImport() {
 
       {/* Upload Step */}
       {step === 'upload' && (
-        <div className="glass-strong rounded-2xl p-8 border border-white/[0.08] max-w-2xl">
+        <div className="glass-strong rounded-2xl p-8 max-w-2xl">
           <h2 className="font-display text-xl tracking-wider text-accent-gold mb-4">UPLOAD SPREADSHEET</h2>
           <p className="text-sm text-white/30 mb-6">
             Upload an Excel (.xlsx) or CSV file with player data. Download the template for the correct column format.
@@ -183,7 +183,7 @@ export default function PlayerImport() {
             className="w-full border-2 border-dashed border-white/10 hover:border-accent-gold/30 rounded-2xl p-12 flex flex-col items-center gap-4 transition-all disabled:opacity-50"
           >
             {uploading ? (
-              <div className="w-10 h-10 border-3 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
+              <div className="w-10 h-10 border-4 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
             ) : (
               <>
                 <FileSpreadsheet className="w-12 h-12 text-white/20" />
@@ -199,7 +199,7 @@ export default function PlayerImport() {
 
       {/* Mapping Step */}
       {step === 'mapping' && (
-        <div className="glass-strong rounded-2xl p-8 border border-white/[0.08] max-w-3xl">
+        <div className="glass-strong rounded-2xl p-8 max-w-3xl">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="font-display text-xl tracking-wider text-accent-gold">MAP COLUMNS</h2>
@@ -257,7 +257,7 @@ export default function PlayerImport() {
 
       {/* Preview Step */}
       {step === 'preview' && (
-        <div className="glass-strong rounded-2xl p-8 border border-white/[0.08]">
+        <div className="glass-strong rounded-2xl p-8">
           <h2 className="font-display text-xl tracking-wider text-accent-gold mb-4">PREVIEW IMPORT</h2>
           <p className="text-sm text-white/30 mb-6">{rows.length} rows will be imported as players.</p>
 
@@ -320,7 +320,7 @@ export default function PlayerImport() {
 
       {/* Done Step */}
       {step === 'done' && result && (
-        <div className="glass-strong rounded-2xl p-8 border border-white/[0.08] max-w-2xl text-center">
+        <div className="glass-strong rounded-2xl p-8 max-w-2xl text-center">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3 }}>
             <Check className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
             <h2 className="font-display text-2xl tracking-wider text-white mb-2">IMPORT COMPLETE</h2>

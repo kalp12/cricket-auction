@@ -6,10 +6,11 @@ interface EmptyStateProps {
   title: string
   message: string
   action?: { label: string; onClick: () => void }
+  secondaryAction?: { label: string; onClick: () => void }
   className?: string
 }
 
-export default function EmptyState({ icon: Icon, title, message, action, className = '' }: EmptyStateProps) {
+export default function EmptyState({ icon: Icon, title, message, action, secondaryAction, className = '' }: EmptyStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}

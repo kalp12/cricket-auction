@@ -3,13 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Plus, Pencil, Trash2, ChevronDown,
-  ArrowLeft, X
+  ArrowLeft, X, FileSpreadsheet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, Badge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle, EmptyState } from '../components/ui'
-import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../api'
+import { Button, Card, Input, Badge, SkeletonGrid, SkeletonTable, SkeletonCard, SkeletonLine, SkeletonCircle, EmptyState, ExportMenu } from '../components/ui'
+import { getTeams, getTeam, createTeam, updateTeam, deleteTeam, exportTeamRosters, exportPlayers } from '../api'
 
 export default function Teams() {
   const { auctionId } = useParams<{ auctionId: string }>()
@@ -30,7 +30,7 @@ export default function Teams() {
   useEffect(() => { fetchTeams() }, [auctionId])
 
   const fetchTeams = async () => {
-    try { const data = await getTeams(aid); setTeams(data) } catch { /* */ }
+    try { const data = await getTeams(aid); setTeams(data) } catch (e: any) { if (e?.response?.status === 401) { localStorage.removeItem('token'); navigate('/login') } else { toast.error('Failed to load teams') } }
     setLoading(false)
   }
 
@@ -100,7 +100,7 @@ export default function Teams() {
     <div className="animate-fade-in relative">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
 
-      <nav className="text-sm text-gray-500 mb-2 relative z-10">
+      <nav className="text-xs tracking-widest font-display mb-6 text-white/30 relative z-10">
         <span className="text-gray-500">HOME</span>
         <span className="mx-2 text-gray-600">›</span>
         <span className="text-gray-400 cursor-pointer hover:text-accent-gold transition-colors" onClick={() => navigate('/auctions')}>AUCTIONS</span>
@@ -111,9 +111,15 @@ export default function Teams() {
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="md" icon={<ArrowLeft className="w-5 h-5" />} onClick={() => navigate(`/auctions/${aid}`)} className="w-10 h-10 !px-0 !py-0" />
-          <h1 className="font-display text-3xl md:text-4xl tracking-wide gradient-text">TEAM MANAGEMENT</h1>
+          <h1 className="font-display text-3xl md:text-4xl tracking-wider gradient-text">TEAM MANAGEMENT</h1>
         </div>
-        <Button variant="emerald" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', short_name: '', total_budget: 100000000, max_players: 18, logo_url: '' }) }}>Add Team</Button>
+        <ExportMenu
+              options={[
+                { label: 'Team Rosters', onClick: async (format) => { const blob = await exportTeamRosters(aid, format); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `team_rosters.${format}`; a.click(); window.URL.revokeObjectURL(url) } },
+              ]}
+            />
+            <Button variant="emerald" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', short_name: '', total_budget: 100000000, max_players: 18, logo_url: '' }) }}>Add Team</Button>
+        <Button variant="ghost" icon={<FileSpreadsheet className="w-4 h-4" />} onClick={() => navigate(`/auctions/${aid}/teams/import`)}>Import</Button>
       </div>
 
       <AnimatePresence>
@@ -161,8 +167,9 @@ export default function Teams() {
         <EmptyState
           icon={Users}
           title="No teams yet"
-          message="Add your first team to get started."
+          message="Add teams manually or import from a spreadsheet."
           action={{ label: 'Add Team', onClick: () => setShowForm(true) }}
+          secondaryAction={{ label: 'Import from Excel', onClick: () => navigate(`/auctions/${aid}/teams/import`) }}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image, Clock, ToggleLeft, ToggleRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio } from '../api'
+import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio, setRegistrationDeadline, updateRegistrationFormConfig, toggleRegistration } from '../api'
 import { SkeletonCard, SkeletonLine } from '../components/ui'
+import { X } from 'lucide-react'
 
 interface Slab {
   id: number
@@ -11,6 +12,47 @@ interface Slab {
   min_price: number
   max_price: number
   increment: number
+}
+
+interface FieldConfig {
+  visible: boolean
+  required: boolean
+}
+
+interface FormConfig {
+  [key: string]: FieldConfig
+}
+
+const DEFAULT_FORM_CONFIG: FormConfig = {
+  name: { visible: true, required: true },
+  role: { visible: true, required: true },
+  country: { visible: true, required: true },
+  base_price: { visible: true, required: true },
+  image: { visible: true, required: false },
+  email: { visible: true, required: false },
+  matches: { visible: true, required: false },
+  runs: { visible: true, required: false },
+  wickets: { visible: true, required: false },
+  batting_avg: { visible: true, required: false },
+  batting_sr: { visible: true, required: false },
+  bowling_avg: { visible: true, required: false },
+  bowling_econ: { visible: true, required: false },
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Full Name',
+  role: 'Role',
+  country: 'Country',
+  base_price: 'Base Price',
+  image: 'Photo Upload',
+  email: 'Email (for notifications)',
+  matches: 'Matches',
+  runs: 'Runs',
+  wickets: 'Wickets',
+  batting_avg: 'Batting Average',
+  batting_sr: 'Batting Strike Rate',
+  bowling_avg: 'Bowling Average',
+  bowling_econ: 'Bowling Economy',
 }
 
 const formatPrice = (val: number) => {
@@ -65,6 +107,12 @@ export default function Settings() {
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
+  // Registration settings
+  const [regOpen, setRegOpen] = useState(false)
+  const [deadline, setDeadline] = useState('')
+  const [formConfig, setFormConfig] = useState<FormConfig>({ ...DEFAULT_FORM_CONFIG })
+  const [savingReg, setSavingReg] = useState(false)
+
   useEffect(() => {
     if (!auctionId) return
     const fetchData = async () => {
@@ -77,6 +125,22 @@ export default function Settings() {
           ? slabsData.map((s: Slab) => ({ ...s }))
           : DEFAULT_SLABS.map(s => ({ ...s, auction_id: Number(auctionId) }))
         )
+        // Load registration settings
+        setRegOpen(!!auctionData.registration_open)
+        if (auctionData.registration_deadline) {
+          const d = new Date(auctionData.registration_deadline)
+          // Format for datetime-local input
+          const pad = (n: number) => String(n).padStart(2, '0')
+          setDeadline(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`)
+        }
+        if (auctionData.registration_form_config) {
+          try {
+            const parsed = typeof auctionData.registration_form_config === 'string'
+              ? JSON.parse(auctionData.registration_form_config)
+              : auctionData.registration_form_config
+            setFormConfig({ ...DEFAULT_FORM_CONFIG, ...parsed })
+          } catch { /* use defaults */ }
+        }
       } catch { navigate('/auctions') }
       finally { setLoading(false) }
     }
@@ -154,13 +218,58 @@ export default function Settings() {
     finally { setUploadingSlot(null) }
   }
 
+const handleRemoveAsset = async (slotKey: string) => {
+if (!auctionId) return
+try {
+const updated = await updateAuction(Number(auctionId), { [slotKey]: '' })
+setAuction(updated); toast.success('Image removed')
+} catch { toast.error('Failed to remove image') }
+}
+
+  // ── Registration handlers ──
+  const handleToggleReg = async () => {
+    try {
+      const data = await toggleRegistration(Number(auctionId))
+      setRegOpen(data.registration_open)
+      toast.success(data.registration_open ? 'Registration opened' : 'Registration closed')
+    } catch { toast.error('Failed to toggle') }
+  }
+
+  const handleSaveDeadline = async () => {
+    if (!auctionId) return
+    setSavingReg(true)
+    try {
+      const deadlineIso = deadline ? new Date(deadline).toISOString() : null
+      await setRegistrationDeadline(Number(auctionId), deadlineIso)
+      toast.success(deadline ? 'Deadline set' : 'Deadline removed')
+    } catch { toast.error('Failed to set deadline') }
+    finally { setSavingReg(false) }
+  }
+
+  const toggleField = (key: string, prop: 'visible' | 'required') => {
+    setFormConfig(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [prop]: !prev[key]?.[prop] },
+    }))
+  }
+
+  const handleSaveFormConfig = async () => {
+    if (!auctionId) return
+    setSavingReg(true)
+    try {
+      await updateRegistrationFormConfig(Number(auctionId), formConfig)
+      toast.success('Form configuration saved')
+    } catch { toast.error('Failed to save form config') }
+    finally { setSavingReg(false) }
+  }
+
   if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-white/40 font-display text-2xl tracking-wider">LOADING...</div>
   if (!auction) return null
 
   const assetUrl = (url: string | null | undefined) => url ? `http://localhost:8000${url}` : null
 
   return (
-    <div className="animate-fade-in noise-bg min-h-screen bg-surface-0 p-6 md:p-8">
+    <div className="animate-fade-in noise-bg min-h-screen bg-surface-0 max-w-6xl mx-auto">
       {/* Breadcrumb */}
       <nav className="text-xs tracking-widest font-display mb-6 text-white/30">
         <span className="text-white/40 hover:text-accent-gold cursor-pointer transition-colors" onClick={() => navigate('/dashboard')}>HOME</span>
@@ -181,8 +290,89 @@ export default function Settings() {
         {saved && <span className="ml-3 text-emerald-400 text-sm font-semibold tracking-wide animate-fade-in">✓ Saved</span>}
       </div>
 
+      {/* ── Player Registration ── */}
+      <div className="glass-strong rounded-2xl p-6 mb-6">
+        <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">PLAYER REGISTRATION</h2>
+        <p className="text-sm text-white/30 mb-6">Allow players to self-register via a public link. Configure which fields appear and set a deadline.</p>
+
+        {/* Toggle */}
+        <div className="flex items-center justify-between mb-5 px-4 py-3 rounded-xl bg-surface-2/50 border border-white/5">
+          <div className="flex items-center gap-3">
+            {regOpen ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-gray-500" />}
+            <span className="text-sm text-gray-300">Registration is <span className={`font-semibold ${regOpen ? 'text-emerald-400' : 'text-gray-500'}`}>{regOpen ? 'OPEN' : 'CLOSED'}</span></span>
+          </div>
+          <button onClick={handleToggleReg} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${regOpen ? 'bg-accent-gold' : 'bg-surface-4'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${regOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        {/* Registration link */}
+        {regOpen && (
+          <div className="flex items-center gap-2 bg-surface-2 rounded-xl px-3 py-2 border border-white/5 text-sm text-gray-400 mb-5">
+            <span className="text-xs text-gray-500 font-display tracking-wider">LINK</span>
+            <span className="truncate font-mono text-xs">{window.location.origin}/register/{auctionId}</span>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/${auctionId}`); toast.success('Link copied!') }}
+              className="ml-auto shrink-0 text-accent-gold hover:text-amber-400 transition-colors text-xs font-medium">Copy</button>
+          </div>
+        )}
+
+        {/* Deadline */}
+        <div className="mb-5">
+          <label className="text-xs tracking-wider text-white/40 font-display mb-2 block">REGISTRATION DEADLINE</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="datetime-local"
+              value={deadline}
+              onChange={e => setDeadline(e.target.value)}
+              className="flex-1 px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none transition-all text-sm"
+            />
+            {deadline && (
+              <button onClick={() => setDeadline('')} className="text-xs text-gray-500 hover:text-rose-400 transition-colors whitespace-nowrap">Clear</button>
+            )}
+            <button onClick={handleSaveDeadline} disabled={savingReg} className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold border border-accent-gold/20 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all">
+              {savingReg ? '...' : 'Save'}
+            </button>
+          </div>
+          {deadline && (
+            <p className="text-xs text-amber-400/60 mt-2 flex items-center gap-1.5"><Clock className="w-3 h-3" /> Registration will auto-close at {new Date(deadline).toLocaleString()}</p>
+          )}
+        </div>
+
+        {/* Form field configuration */}
+        <div>
+          <label className="text-xs tracking-wider text-white/40 font-display mb-3 block">FORM FIELD CONFIGURATION</label>
+          <p className="text-xs text-white/20 mb-3">Toggle which fields appear on the public registration form and mark them as required.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+            {Object.keys(DEFAULT_FORM_CONFIG).map(key => {
+              const fc = formConfig[key] || { visible: true, required: false }
+              const isAlwaysOn = key === 'name' // name can't be hidden
+              return (
+                <div key={key} className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${fc.visible ? 'bg-surface-2/80 border-white/5' : 'bg-surface-1/50 border-white/[0.03] opacity-50'}`}>
+                  <span className="text-sm text-gray-300">{FIELD_LABELS[key]}</span>
+                  <div className="flex items-center gap-3">
+                    {!isAlwaysOn && (
+                      <button onClick={() => toggleField(key, 'visible')} title="Toggle visibility" className={`text-xs px-2 py-1 rounded-md transition-all ${fc.visible ? 'bg-accent-gold/15 text-accent-gold' : 'bg-surface-3 text-gray-600'}`}>
+                        {fc.visible ? 'Visible' : 'Hidden'}
+                      </button>
+                    )}
+                    {fc.visible && (
+                      <button onClick={() => toggleField(key, 'required')} title="Toggle required" className={`text-xs px-2 py-1 rounded-md transition-all ${fc.required ? 'bg-rose-500/15 text-rose-400' : 'bg-surface-3 text-gray-500'}`}>
+                        {fc.required ? 'Required' : 'Optional'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <button onClick={handleSaveFormConfig} disabled={savingReg} className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold border border-accent-gold/20 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all">
+            {savingReg ? '...' : 'Save Form Config'}
+          </button>
+        </div>
+      </div>
+
       {/* Auction Rules */}
-      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6 mb-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-5">AUCTION RULES</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -221,7 +411,7 @@ export default function Settings() {
       </div>
 
       {/* Bid Increment Slabs */}
-      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6 mb-6">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-display text-xl tracking-wider text-accent-gold">BID INCREMENT SLABS</h2>
           <button onClick={resetToDefaults} className="text-xs tracking-wider text-white/40 hover:text-accent-gold font-display flex items-center gap-1.5 transition-colors">
@@ -276,7 +466,7 @@ export default function Settings() {
       </div>
 
       {/* Sponsor Corner Logos */}
-      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6 mb-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">SPONSOR CORNER LOGOS</h2>
         <p className="text-sm text-white/30 mb-6">Upload sponsor logos to display in the four corners of the live auction screen and broadcast overlay.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -296,9 +486,10 @@ export default function Settings() {
                     <><Upload className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD</span></>
                   )}
                 </button>
-                {imageUrl && !isUploading && (
-                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace image"><Upload className="w-3 h-3" /></button>
-                )}
+                {imageUrl && !isUploading && (<>
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-8 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace image"><Upload className="w-3 h-3" /></button>
+<button onClick={() => handleRemoveAsset(key)} className="absolute bottom-2 right-2 bg-black/60 hover:bg-rose-500/80 text-white/40 hover:text-rose-400 rounded-lg p-1.5 transition-all" title="Remove image"><X className="w-3 h-3" /></button>
+                </>)}
               </div>
             )
           })}
@@ -306,7 +497,7 @@ export default function Settings() {
       </div>
 
       {/* Broadcast Overlay Assets */}
-      <div className="glass-strong rounded-2xl p-6 mb-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6 mb-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">BROADCAST OVERLAY</h2>
         <p className="text-sm text-white/30 mb-6">Upload custom graphics for the broadcast overlay page (used as OBS Browser Source). Leave empty for defaults.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -326,9 +517,10 @@ export default function Settings() {
                     <><Image className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD</span></>
                   )}
                 </button>
-                {imageUrl && !isUploading && (
-                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
-                )}
+                {imageUrl && !isUploading && (<>
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-8 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
+<button onClick={() => handleRemoveAsset(key)} className="absolute bottom-2 right-2 bg-black/60 hover:bg-rose-500/80 text-white/40 hover:text-rose-400 rounded-lg p-1.5 transition-all" title="Remove"><X className="w-3 h-3" /></button>
+                </>)}
               </div>
             )
           })}
@@ -349,7 +541,7 @@ export default function Settings() {
       </div>
 
       {/* Sound Effects */}
-      <div className="glass-strong rounded-2xl p-6 border border-white/[0.08]">
+      <div className="glass-strong rounded-2xl p-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">SOUND EFFECTS</h2>
         <p className="text-sm text-white/30 mb-6">Upload custom audio clips for auction events. Leave empty for default sounds.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -369,15 +561,16 @@ export default function Settings() {
                       <span className="text-[10px] text-white/40 font-display tracking-wider">UPLOADED</span>
                       {auction[key] && (
                         <audio controls src={`http://localhost:8000${auction[key]}`} className="w-full px-2 mt-1" style={{ height: 28 }} />
-                                )}
-                                </div>
-                                ) : (
+                      )}
+                    </div>
+                  ) : (
                     <><Volume2 className="w-6 h-6 text-white/20 group-hover:text-accent-gold/50 transition-colors" /><span className="text-[10px] text-white/20 font-display tracking-wider">UPLOAD MP3</span></>
                   )}
                 </button>
-                {hasFile && !isUploading && (
-                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
-                )}
+                {hasFile && !isUploading && (<>
+                  <button onClick={() => fileRefs.current[key]?.click()} className="absolute bottom-2 right-8 bg-black/60 hover:bg-black/80 text-white/40 hover:text-accent-gold rounded-lg p-1.5 transition-all" title="Replace"><Upload className="w-3 h-3" /></button>
+<button onClick={() => handleRemoveAsset(key)} className="absolute bottom-2 right-2 bg-black/60 hover:bg-rose-500/80 text-white/40 hover:text-rose-400 rounded-lg p-1.5 transition-all" title="Remove"><X className="w-3 h-3" /></button>
+                </>)}
               </div>
             )
           })}

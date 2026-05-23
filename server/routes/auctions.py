@@ -100,8 +100,9 @@ async def start_auction(auction_id: int, db: Session = Depends(get_db), current_
 
 
 @router.post("/{auction_id}/next-player", status_code=status.HTTP_200_OK)
-async def next_player(auction_id: int, random_select: bool = Query(True), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    """Move to next player in auction. Default: random selection. Use random_select=false for sequential."""
+@router.post("/{auction_id}/next-player", status_code=status.HTTP_200_OK)
+async def next_player(auction_id: int, random_select: bool = Query(True), player_id: int = Query(None), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Move to next player. Default: random. Use player_id to pick a specific player."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
         raise HTTPException(status_code=404, detail="Auction not found")
@@ -109,43 +110,49 @@ async def next_player(auction_id: int, random_select: bool = Query(True), db: Se
     if db_auction.status not in ("live", "waiting"):
         raise HTTPException(status_code=400, detail="Auction not in progress")
 
-    # If there's a current player still unsold, skip it
-    exclude_id = None
-    if db_auction.current_player_id:
-        current = db.query(Player).filter(Player.id == db_auction.current_player_id).first()
-        if current and current.status == "unsold":
-            exclude_id = current.id
-
-    query = db.query(Player).filter(
-        Player.auction_id == auction_id,
-        Player.status == "unsold"
-    )
-    if exclude_id:
-        query = query.filter(Player.id != exclude_id)
-
-    candidates = query.all()
-
-    if not candidates:
-        db_auction.status = "ended"
-        db.commit()
-        await ws_manager.broadcast(auction_id, {
-            "type": "state",
-            "auction_id": auction_id,
-            "status": "ended",
-            "current_bid": 0,
-            "current_player_id": None,
-            "current_team_id": None,
-            "timer_seconds": 0,
-            "current_player": None,
-            "current_team": None,
-        })
-        return {"message": "No more players. Auction ended."}
-
-    # Pick random or sequential
-    if random_select:
-        next_p = random.choice(candidates)
+    # If specific player requested, select them directly
+    if player_id:
+        next_p = db.query(Player).filter(Player.id == player_id, Player.auction_id == auction_id, Player.status == "unsold").first()
+        if not next_p:
+            raise HTTPException(status_code=404, detail="Player not found or already sold")
     else:
-        next_p = candidates[0]
+        # If there's a current player still unsold, skip it
+        exclude_id = None
+        if db_auction.current_player_id:
+            current = db.query(Player).filter(Player.id == db_auction.current_player_id).first()
+            if current and current.status == "unsold":
+                exclude_id = current.id
+
+        query = db.query(Player).filter(
+            Player.auction_id == auction_id,
+            Player.status == "unsold"
+        )
+        if exclude_id:
+            query = query.filter(Player.id != exclude_id)
+
+        candidates = query.all()
+
+        if not candidates:
+            db_auction.status = "ended"
+            db.commit()
+            await ws_manager.broadcast(auction_id, {
+                "type": "state",
+                "auction_id": auction_id,
+                "status": "ended",
+                "current_bid": 0,
+                "current_player_id": None,
+                "current_team_id": None,
+                "timer_seconds": 0,
+                "current_player": None,
+                "current_team": None,
+            })
+            return {"message": "No more players. Auction ended."}
+
+        # Pick random or sequential
+        if random_select:
+            next_p = random.choice(candidates)
+        else:
+            next_p = candidates[0]
 
     db_auction.current_player_id = next_p.id
     db_auction.current_bid = next_p.base_price
@@ -190,3 +197,4 @@ async def next_player(auction_id: int, random_select: bool = Query(True), db: Se
         "player_name": next_p.name,
         "base_price": next_p.base_price,
     }
+

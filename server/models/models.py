@@ -92,7 +92,11 @@ class Auction(Base):
     sound_unsold = Column(String, nullable=True)
     sound_timer = Column(String, nullable=True)
     sound_celebration = Column(String, nullable=True)
+
+    # Player registration
     registration_open = Column(Integer, default=0)  # 0=closed, 1=open
+    registration_deadline = Column(DateTime, nullable=True)
+    registration_form_config = Column(String, nullable=True)  # JSON
 
     current_player = relationship("Player", foreign_keys=[current_player_id])
     current_team = relationship("Team", foreign_keys=[current_team_id])
@@ -128,7 +132,6 @@ class Bid(Base):
     player = relationship("Player", back_populates="bids")
 
 
-
 class Registration(Base):
     __tablename__ = "registrations"
 
@@ -147,6 +150,31 @@ class Registration(Base):
     bowling_avg = Column(Float, default=0.0)
     bowling_econ = Column(Float, default=0.0)
     status = Column(String, default="pending")  # pending/approved/rejected
+    email = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     auction = relationship("Auction", foreign_keys=[auction_id])
+
+class StatUpdate(Base):
+    __tablename__ = "stat_updates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    source = Column(String, nullable=False)  # manual / espn_cricinfo / cricbuzz / custom
+    old_matches = Column(Integer, nullable=True)
+    new_matches = Column(Integer, nullable=True)
+    old_runs = Column(Integer, nullable=True)
+    new_runs = Column(Integer, nullable=True)
+    old_wickets = Column(Integer, nullable=True)
+    new_wickets = Column(Integer, nullable=True)
+    old_batting_avg = Column(Float, nullable=True)
+    new_batting_avg = Column(Float, nullable=True)
+    old_batting_sr = Column(Float, nullable=True)
+    new_batting_sr = Column(Float, nullable=True)
+    old_bowling_avg = Column(Float, nullable=True)
+    new_bowling_avg = Column(Float, nullable=True)
+    old_bowling_econ = Column(Float, nullable=True)
+    new_bowling_econ = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    player = relationship("Player", backref="stat_updates")

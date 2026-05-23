@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  User, Plus, Pencil, Trash2, X, Search, Filter, UserCheck, UserX, Clock, ArrowLeft, FileSpreadsheet, ClipboardList, Check, XCircle, QrCode, Link
+  User, Plus, Pencil, Trash2, X, Search, Filter, UserCheck, UserX, Clock, ArrowLeft, FileSpreadsheet, ClipboardList, TrendingUp, Check, XCircle, QrCode, Link, Mail
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { Button, Card, Input, RoleBadge, StatusBadge, EmptyState } from '../components/ui'
-import { getPlayers, createPlayer, updatePlayer, deletePlayer, listRegistrations, approveRegistration, rejectRegistration, toggleRegistration, getAuction } from '../api'
+import { Button, Card, Input, RoleBadge, StatusBadge, EmptyState, ExportMenu, SkeletonTable } from '../components/ui'
+import { getPlayers, createPlayer, updatePlayer, deletePlayer, listRegistrations, approveRegistration, rejectRegistration, toggleRegistration, getAuction, exportPlayers } from '../api'
 
 const roles = ['all', 'batsman', 'bowler', 'allrounder', 'wicketkeeper']
 const statuses = ['all', 'unsold', 'sold', 'pending']
@@ -56,7 +56,10 @@ export default function Players() {
       if (statusFilter !== 'all') params.status = statusFilter
       const data = await getPlayers(aid, params)
       setPlayers(data.players || data)
-    } catch { /* */ }
+    } catch (e: any) {
+      if (e?.response?.status === 401) { localStorage.removeItem('token'); navigate('/login') }
+      else { toast.error('Failed to load players') }
+    }
     setLoading(false)
   }
 
@@ -104,14 +107,20 @@ export default function Players() {
     try {
       const data = await listRegistrations(aid)
       setRegistrations(data)
-    } catch { /* */ }
+    } catch (e: any) {
+      if (e?.response?.status === 401) { localStorage.removeItem('token'); navigate('/login') }
+      else { toast.error('Failed to load registrations') }
+    }
   }
 
   const fetchRegStatus = async () => {
     try {
       const auction = await getAuction(aid)
       setRegOpen(!!auction.registration_open)
-    } catch { /* */ }
+    } catch (e: any) {
+      if (e?.response?.status === 401) { localStorage.removeItem('token'); navigate('/login') }
+      else { toast.error('Failed to load registration status') }
+    }
   }
 
   useEffect(() => { if (tab === 'registrations') { fetchRegistrations(); fetchRegStatus() } }, [tab])
@@ -155,7 +164,7 @@ export default function Players() {
   )
 
   if (loading) return (
-    <div className="p-12 text-gray-500 text-center animate-fade-in">Loading players...</div>
+    <div className="p-6 space-y-6 animate-fade-in"><SkeletonTable rows={6} cols={6} /></div>
   )
 
   const selectCls = 'w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all text-sm appearance-none cursor-pointer'
@@ -183,6 +192,13 @@ export default function Players() {
         <div className="flex items-center gap-3">
           <Button variant="gold" icon={<FileSpreadsheet className="w-4 h-4" />} onClick={() => navigate("/auctions/" + aid + "/players/import")}
             className="bg-surface-3 hover:bg-surface-4 text-white/60 !shadow-none border border-white/5">Import</Button>
+                  <Button variant="gold" icon={<TrendingUp className="w-4 h-4" />} onClick={() => navigate("/auctions/" + aid + "/players/stats-import")}
+                    className="bg-surface-3 hover:bg-surface-4 text-white/60 !shadow-none border border-white/5">Stats Import</Button>
+                  <ExportMenu
+                    options={[
+                      { label: 'Players', onClick: async (format) => { const blob = await exportPlayers(aid, format); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `players.${format}`; a.click(); window.URL.revokeObjectURL(url) } },
+                    ]}
+                  />
           {tab === 'players' && (
             <Button variant="gold" icon={<Plus className="w-4 h-4" />} onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ ...emptyForm }) }}
               className="bg-accent-gold/15 hover:bg-accent-gold/25 text-accent-gold !shadow-none border border-accent-gold/20">Add Player</Button>
@@ -250,6 +266,7 @@ export default function Players() {
                       <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Role</th>
                       <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Country</th>
                       <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Base Price</th>
+<th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Email</th>
                       <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Status</th>
                       <th className="text-right text-[10px] font-medium text-gray-500 uppercase tracking-widest px-5 py-4">Actions</th>
                     </tr>
@@ -261,6 +278,7 @@ export default function Players() {
                         <td className="px-5 py-3.5"><RoleBadge role={reg.role} /></td>
                         <td className="px-5 py-3.5 text-sm text-gray-400">{reg.country}</td>
                         <td className="px-5 py-3.5 text-sm font-mono text-white">{formatPrice(reg.base_price)}</td>
+<td className="px-5 py-3.5 text-sm text-gray-400">{reg.email ? <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-600" />{reg.email}</span> : <span className="text-gray-600">—</span>}</td>
                         <td className="px-5 py-3.5">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium ${
                             reg.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
@@ -311,7 +329,7 @@ export default function Players() {
 
                   {error && (
                     <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                      className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-sm mb-5">{error}</motion.div>
+                      className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-xl text-sm mb-5">{error}</motion.div>
                   )}
 
                   <form onSubmit={handleSubmit} className="space-y-5">
@@ -441,9 +459,9 @@ export default function Players() {
                               <StatusBadge status={player.status} />
                             </td>
                             <td className="px-5 py-3.5 text-right">
-                              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="sm" icon={<Pencil className="w-4 h-4" />} onClick={() => handleEdit(player)} className="w-8 h-8 !px-0 !py-0" />
-                                <Button variant="ghost" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => handleDelete(player.id)} className="w-8 h-8 !px-0 !py-0 hover:!text-rose-400 hover:!bg-rose-500/10" />
+                              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="sm" icon={<Pencil className="w-4 h-4" />} onClick={() => handleEdit(player)} aria-label={`Edit ${player.name}`} className="w-8 h-8 !px-0 !py-0" />
+                                <Button variant="ghost" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => handleDelete(player.id)} aria-label={`Delete ${player.name}`} className="w-8 h-8 !px-0 !py-0 hover:!text-rose-400 hover:!bg-rose-500/10" />
                               </div>
                             </td>
                           </motion.tr>

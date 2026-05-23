@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, History, Users, TrendingUp, Search } from 'lucide-react'
-import { getAuctionHistory, getTeams } from '../api'
-import { SkeletonTable } from '../components/ui'
+import { ArrowLeft, History, Users, TrendingUp, Search, FileDown, ChevronDown } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { getAuctionHistory, getTeams, exportAuctionResults, exportTeamRosters } from '../api'
+import { SkeletonTable, ExportMenu } from '../components/ui'
 
 interface HistoryEntry {
   player: string
@@ -75,7 +76,13 @@ export default function AuctionHistory() {
         <button onClick={() => navigate(`/auctions/${aid}`)} className="text-gray-500 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-display text-5xl tracking-wide gradient-text">AUCTION HISTORY</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wider gradient-text">AUCTION HISTORY</h1>
+        <ExportMenu
+          options={[
+            { label: 'Auction Results', onClick: async (format) => { const blob = await exportAuctionResults(aid, format); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `auction_results.${format}`; a.click(); window.URL.revokeObjectURL(url) } },
+            { label: 'Team Rosters', onClick: async (format) => { const blob = await exportTeamRosters(aid, format); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `team_rosters.${format}`; a.click(); window.URL.revokeObjectURL(url) } },
+          ]}
+        />
       </div>
 
       {/* Summary Cards */}

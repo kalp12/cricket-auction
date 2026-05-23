@@ -15,6 +15,9 @@ from routes.upload import router as upload_router
 from routes.stats import router as stats_router
 from routes.import_players import router as import_router
 from routes.registration import router as registration_router
+from routes.export import router as export_router
+from routes.stats_import import router as stats_import_router
+from routes.import_teams import router as import_teams_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -56,7 +59,12 @@ def run_migrations():
         ("auctions", "sound_gavel", "ALTER TABLE auctions ADD COLUMN sound_gavel VARCHAR"),
         ("auctions", "sound_unsold", "ALTER TABLE auctions ADD COLUMN sound_unsold VARCHAR"),
         ("auctions", "sound_timer", "ALTER TABLE auctions ADD COLUMN sound_timer VARCHAR"),
-        ("auctions", "sound_celebration", "ALTER TABLE auctions ADD COLUMN sound_celebration VARCHAR"),        ("auctions", "registration_open", "ALTER TABLE auctions ADD COLUMN registration_open INTEGER DEFAULT 0"),
+        ("auctions", "sound_celebration", "ALTER TABLE auctions ADD COLUMN sound_celebration VARCHAR"),
+        ("auctions", "registration_open", "ALTER TABLE auctions ADD COLUMN registration_open INTEGER DEFAULT 0"),
+        ("auctions", "registration_deadline", "ALTER TABLE auctions ADD COLUMN registration_deadline TIMESTAMP"),
+        ("auctions", "registration_form_config", "ALTER TABLE auctions ADD COLUMN registration_form_config VARCHAR"),
+        ("registrations", "email", "ALTER TABLE registrations ADD COLUMN email VARCHAR"),
+        ("stat_updates", "id", "CREATE TABLE IF NOT EXISTS stat_updates (id SERIAL PRIMARY KEY, player_id INTEGER REFERENCES players(id), source VARCHAR NOT NULL, old_matches INTEGER, new_matches INTEGER, old_runs INTEGER, new_runs INTEGER, old_wickets INTEGER, new_wickets INTEGER, old_batting_avg FLOAT, new_batting_avg FLOAT, old_batting_sr FLOAT, new_batting_sr FLOAT, old_bowling_avg FLOAT, new_bowling_avg FLOAT, old_bowling_econ FLOAT, new_bowling_econ FLOAT, created_at TIMESTAMP DEFAULT NOW())"),
     ]
 
     db = SessionLocal()
@@ -111,6 +119,9 @@ app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
 app.include_router(stats_router, prefix="/api", tags=["stats"])
 app.include_router(import_router, prefix="/api/import", tags=["import"])
 app.include_router(registration_router, prefix="/api/registration", tags=["registration"])
+app.include_router(export_router, prefix="/api/export", tags=["export"])
+app.include_router(stats_import_router, prefix="/api/stats-import", tags=["stats-import"])
+app.include_router(import_teams_router, prefix="/api/import", tags=["import-teams"])
 app.include_router(bids_router, tags=["websocket"])
 
 

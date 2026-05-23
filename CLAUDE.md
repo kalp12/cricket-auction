@@ -29,6 +29,10 @@ Full-stack cricket auction website with real-time bidding, user management, and 
 - `auction.py` — Auction flow: `/api/auction/start`, `/bid`, `/sold`, `/unsold`, `/pause`, `/resume`, `/state`, `/history`
 - `auctions.py` — CRUD `/api/auctions`, `/auctions/{id}/start`, `/auctions/{id}/next-player`
 - `stats.py` — GET `/api/auction/{id}/stats` (analytics: overview, role/country breakdown, top batsmen/bowlers, team spending, most expensive)
+- `import_players.py` — POST `/api/import/players/upload`, `/players/commit`, GET `/players/template` (bulk player import with column mapping)
+- `stats_import.py` — POST `/api/stats-import/upload`, `/stats-import/commit`, GET `/stats-import/history/{player_id}` (external stats import with fuzzy matching + versioning)
+- `export.py` — GET `/api/export/players`, `/export/auction-results`, `/export/team-rosters` (xlsx/csv export with styled formatting)
+- `registration.py` — POST `/api/registration/{id}/submit`, `/approve`, `/reject`, `/toggle`, `/deadline`, `/form-config` (player self-registration)
 - `bids.py` — WebSocket endpoint `/ws/auction/{auction_id}` for real-time bidding
 
 **WebSocket**: `bids.py` has its own `ConnectionManager` (per-auction rooms). The `websocket/manager.py` and `routes/ws.py` are a separate unused implementation — do not use them.
@@ -52,6 +56,9 @@ React 19 app with React Router, Tailwind CSS, lucide-react icons. API calls in `
 - `AuctionLive.tsx` — live auction room with WebSocket, keyboard bidding, timer circle, team sidebar, bid history, notifications, sold/unsold animations
 - `AuctionHistory.tsx` — sold players list, team spending breakdown, search/filter
 - `AuctionStats.tsx` — auction analytics: role/country breakdown, top batsmen/bowlers, team spending chart, most expensive sale, highest base prices
+- `PlayerImport.tsx` — 4-step wizard: upload xlsx/csv → column mapping (auto-suggest) → preview with validation → import results
+- `StatsImport.tsx` — import player stats from external sources: upload → column mapping → diff preview (old vs new) → apply with versioning
+- `PlayerRegister.tsx` — public player self-registration form (no login required)
 - `Auction.tsx` — legacy standalone auction page (not used in dashboard routes)
 
 **Components** (`components/`):
@@ -123,31 +130,31 @@ cd client && npm test
 - [x] Command palette / quick search (cmd+k)
 
 ### Player Registration (Google Form-like)
-- [ ] Public player registration page (no login required) — form with name, role, country, base_price, stats, photo upload
-- [ ] Registration form shareable link per auction (e.g. /register/{auction_id})
-- [ ] Admin approval workflow for registered players (pending → approved → added to pool)
-- [ ] Customizable registration form (admin can toggle which fields are required)
-- [ ] Registration deadline / cutoff timer
-- [ ] Email confirmation on registration (optional)
-- [ ] QR code generation for registration link
+- [x] Public player registration page (no login required) — form with name, role, country, base_price, stats, photo upload
+- [x] Registration form shareable link per auction (e.g. /register/{auction_id})
+- [x] Admin approval workflow for registered players (pending → approved → added to pool)
+- [x] Customizable registration form (admin can toggle which fields are required)
+- [x] Registration deadline / cutoff timer
+- [x] Email confirmation on registration (optional)
+- [x] QR code generation for registration link
 
 ### Excel/CSV Import & Export
-- [ ] Upload Excel/CSV file to bulk import players (map columns to player fields)
-- [ ] Column mapping UI — drag/map uploaded column names to system fields
-- [ ] Import preview table with validation errors highlighted before committing
-- [ ] Export players to Excel/CSV (full data dump)
-- [ ] Export auction results to Excel/CSV (sold/unsold, prices, team assignments)
-- [ ] Export team rosters to Excel/CSV
-- [ ] Support for .xlsx and .csv formats (openpyxl for Excel, pandas for parsing)
-- [ ] Template download — admin downloads blank template with correct column headers
+- [x] Upload Excel/CSV file to bulk import players (map columns to player fields)
+- [x] Column mapping UI — drag/map uploaded column names to system fields
+- [x] Import preview table with validation errors highlighted before committing
+- [x] Export players to Excel/CSV (full data dump)
+- [x] Export auction results to Excel/CSV (sold/unsold, prices, team assignments)
+- [x] Export team rosters to Excel/CSV
+- [x] Support for .xlsx and .csv formats (openpyxl for Excel, pandas for parsing)
+- [x] Template download — admin downloads blank template with correct column headers
 
 ### External Stats Import
-- [ ] Upload Excel/CSV with player cricket stats from external providers (ESPN Cricinfo, Cricbuzz, HowStat)
-- [ ] Match stats by player name (fuzzy matching) or player ID
-- [ ] Stats mapping UI — map uploaded columns to batting_avg, bowling_econ, etc.
-- [ ] Import preview with diff view (showing old vs new stat values)
-- [ ] Historical stats versioning — keep track of stat updates over time
-- [ ] Support common external stat formats (ESPN Cricinfo export, Cricbuzz CSV)
+- [x] Upload Excel/CSV with player cricket stats from external providers (ESPN Cricinfo, Cricbuzz, HowStat)
+- [x] Match stats by player name (fuzzy matching) or player ID
+- [x] Stats mapping UI — map uploaded columns to batting_avg, bowling_econ, etc.
+- [x] Import preview with diff view (showing old vs new stat values)
+- [x] Historical stats versioning — keep track of stat updates over time
+- [x] Support common external stat formats (ESPN Cricinfo export, Cricbuzz CSV)
 
 ## Future Scope (Advanced / Phase 3+)
 
@@ -200,3 +207,4 @@ cd client && npm test
 - [x] Player stats tracking (cricket stats on Player model, Stats page with analytics, Players table shows Mat/Runs/Wkts, seed data with realistic stats)
 - [x] Image upload for players/teams/auctions
 - [x] Auto-advance on sold/unsold
+- [x] Player registration system (public form, photo upload, admin approval, customizable form config, deadline/cutoff, QR code, shareable link)

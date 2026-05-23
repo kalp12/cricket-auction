@@ -21,7 +21,7 @@ export default function DashboardLayout() {
       <MotionConfig reducedMotion="user">
         <div className="min-h-screen bg-surface-0">
           {/* Desktop sidebar */}
-          <div className="hidden lg:block">
+          <div className="hidden lg:block fixed inset-y-0 left-0 z-20">
             <Sidebar />
           </div>
 

@@ -40,7 +40,7 @@ const CHART_COLORS = ['#6366f1', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#1
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="glass-strong rounded-lg px-3 py-2 border border-white/10 shadow-xl">
+    <div className="glass-strong rounded-lg px-3 py-2 shadow-xl">
       {label && <p className="text-xs text-gray-400 mb-1">{label}</p>}
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color || p.fill }}>
@@ -117,7 +117,7 @@ export default function AuctionStats() {
 
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => navigate(`/auctions/${aid}`)} className="text-gray-500 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="font-display text-3xl md:text-5xl tracking-wide gradient-text">AUCTION STATS</h1>
+        <h1 className="font-display text-3xl md:text-5xl tracking-wider gradient-text">AUCTION STATS</h1>
       </div>
 
       {/* Overview Cards */}

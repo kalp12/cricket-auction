@@ -1,10 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Trophy, Check, AlertCircle } from 'lucide-react'
-import { submitRegistration, getRegistrationStatus } from '../api'
+import { Trophy, Check, AlertCircle, Camera, Upload, Clock, Mail } from 'lucide-react'
+import { submitRegistration, getRegistrationStatus, uploadRegistrationImage } from '../api'
 
 const ROLES = ['batsman', 'bowler', 'allrounder', 'wicketkeeper']
+
+interface FieldConfig {
+  visible: boolean
+  required: boolean
+}
+
+interface FormConfig {
+  [key: string]: FieldConfig
+}
+
+const DEFAULT_FORM_CONFIG: FormConfig = {
+  name: { visible: true, required: true },
+  role: { visible: true, required: true },
+  country: { visible: true, required: true },
+  base_price: { visible: true, required: true },
+  image: { visible: true, required: false },
+  email: { visible: true, required: false },
+  matches: { visible: true, required: false },
+  runs: { visible: true, required: false },
+  wickets: { visible: true, required: false },
+  batting_avg: { visible: true, required: false },
+  batting_sr: { visible: true, required: false },
+  bowling_avg: { visible: true, required: false },
+  bowling_econ: { visible: true, required: false },
+}
 
 export default function PlayerRegister() {
   const { auctionId } = useParams<{ auctionId: string }>()
@@ -15,12 +40,19 @@ export default function PlayerRegister() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [formConfig, setFormConfig] = useState<FormConfig>(DEFAULT_FORM_CONFIG)
+  const [deadline, setDeadline] = useState<string | null>(null)
+  const [timeLeft, setTimeLeft] = useState<string | null>(null)
+
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     name: '',
     role: 'batsman',
     country: '',
     base_price: '',
+    email: '',
     matches: '',
     runs: '',
     wickets: '',
@@ -30,23 +62,61 @@ export default function PlayerRegister() {
     bowling_econ: '',
   })
 
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   useEffect(() => {
     getRegistrationStatus(aid).then(data => {
       setAuctionName(data.auction_name)
       setIsOpen(data.open)
+      if (data.form_config) setFormConfig(data.form_config)
+      if (data.deadline) setDeadline(data.deadline)
     }).catch(() => setIsOpen(false))
   }, [aid])
+
+  // Deadline countdown
+  useEffect(() => {
+    if (!deadline) return
+    const update = () => {
+      const diff = new Date(deadline).getTime() - Date.now()
+      if (diff <= 0) {
+        setIsOpen(false)
+        setTimeLeft('Deadline passed')
+        if (timerRef.current) clearInterval(timerRef.current)
+        return
+      }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setTimeLeft(`${h}h ${m}m ${s}s remaining`)
+    }
+    update()
+    timerRef.current = setInterval(update, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [deadline])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
+      let imageUrl: string | undefined
+      if (imageFile && formConfig.image?.visible) {
+        try {
+          const imgRes = await uploadRegistrationImage(aid, imageFile)
+          imageUrl = imgRes.url
+        } catch {
+          setError('Image upload failed. Please try again.')
+          setLoading(false)
+          return
+        }
+      }
       await submitRegistration(aid, {
         name: form.name,
         role: form.role,
         country: form.country,
         base_price: parseFloat(form.base_price) || 0,
+        image_url: imageUrl,
+        email: form.email || undefined,
         matches: parseInt(form.matches) || 0,
         runs: parseInt(form.runs) || 0,
         wickets: parseInt(form.wickets) || 0,
@@ -64,6 +134,7 @@ export default function PlayerRegister() {
   }
 
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }))
+  const fc = (key: string) => formConfig[key] || { visible: true, required: false }
 
   const inputClass = "w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all"
 
@@ -77,7 +148,7 @@ export default function PlayerRegister() {
         <div className="glass-strong rounded-2xl p-10 text-center max-w-md">
           <Trophy className="w-12 h-12 text-gray-500 mx-auto mb-4" />
           <h1 className="font-display text-2xl text-white mb-2">Registration Closed</h1>
-          <p className="text-gray-500">Player registration is not currently open for this auction.</p>
+          <p className="text-gray-500">{timeLeft === 'Deadline passed' ? 'The registration deadline has passed.' : 'Player registration is not currently open for this auction.'}</p>
         </div>
       </div>
     )
@@ -91,11 +162,13 @@ export default function PlayerRegister() {
             <Check className="w-8 h-8 text-emerald-400" />
           </div>
           <h1 className="font-display text-2xl text-white mb-2">Registration Submitted!</h1>
-          <p className="text-gray-500">Your registration is pending admin approval. You'll be added to the player pool once approved.</p>
+          <p className="text-gray-500">Your registration is pending admin approval. {form.email ? "You'll receive a confirmation email shortly." : "You'll be added to the player pool once approved."}</p>
         </motion.div>
       </div>
     )
   }
+
+  const hasStatsFields = fc('matches').visible || fc('runs').visible || fc('wickets').visible || fc('batting_avg').visible || fc('batting_sr').visible || fc('bowling_avg').visible || fc('bowling_econ').visible
 
   return (
     <div className="min-h-screen bg-surface-0 flex items-center justify-center p-4 noise-bg relative overflow-hidden">
@@ -111,6 +184,11 @@ export default function PlayerRegister() {
             </div>
             <h1 className="font-display text-3xl tracking-wide gradient-text">PLAYER REGISTRATION</h1>
             <p className="text-gray-500 text-sm mt-1">{auctionName}</p>
+            {deadline && timeLeft && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">
+                <Clock className="w-3.5 h-3.5" /> {timeLeft}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -120,64 +198,134 @@ export default function PlayerRegister() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Required fields */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Full Name *</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} className={inputClass} placeholder="Enter your name" required />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            {/* Name */}
+            {fc('name').visible && (
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Role *</label>
-                <select value={form.role} onChange={e => set('role', e.target.value)} className={inputClass}>
-                  {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Full Name {fc('name').required && '*'}</label>
+                <input value={form.name} onChange={e => set('name', e.target.value)} className={inputClass} placeholder="Enter your name" required={fc('name').required} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Country *</label>
-                <input value={form.country} onChange={e => set('country', e.target.value)} className={inputClass} placeholder="e.g. India" required />
-              </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Base Price (₹) *</label>
-              <input type="number" value={form.base_price} onChange={e => set('base_price', e.target.value)} className={inputClass} placeholder="e.g. 2000000" required />
-            </div>
+            {/* Email */}
+            {fc('email').visible && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                  <Mail className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />
+                  Email {fc('email').required && '*'}
+                </label>
+                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputClass} placeholder="you@example.com" required={fc('email').required} />
+                {!fc('email').required && <p className="text-[11px] text-gray-600 mt-1">Optional — receive confirmation when your registration is approved</p>}
+              </div>
+            )}
+
+            {/* Role & Country */}
+            {(fc('role').visible || fc('country').visible) && (
+              <div className="grid grid-cols-2 gap-4">
+                {fc('role').visible && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1.5">Role {fc('role').required && '*'}</label>
+                    <select value={form.role} onChange={e => set('role', e.target.value)} className={inputClass} required={fc('role').required}>
+                      {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                    </select>
+                  </div>
+                )}
+                {fc('country').visible && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1.5">Country {fc('country').required && '*'}</label>
+                    <input value={form.country} onChange={e => set('country', e.target.value)} className={inputClass} placeholder="e.g. India" required={fc('country').required} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Base Price */}
+            {fc('base_price').visible && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Base Price (₹) {fc('base_price').required && '*'}</label>
+                <input type="number" value={form.base_price} onChange={e => set('base_price', e.target.value)} className={inputClass} placeholder="e.g. 2000000" required={fc('base_price').required} />
+              </div>
+            )}
+
+            {/* Photo Upload */}
+            {fc('image').visible && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1.5">Photo {fc('image').required && '*'}</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-surface-2 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-gray-600" />
+                    )}
+                  </div>
+                  <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-white/10 hover:border-accent-gold/30 bg-surface-2/50 cursor-pointer transition-all ${imagePreview ? 'text-emerald-400 border-emerald-500/20' : 'text-gray-500'}`}>
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm">{imageFile ? imageFile.name : 'Choose photo'}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setImageFile(file)
+                        setImagePreview(URL.createObjectURL(file))
+                      }
+                    }} />
+                  </label>
+                  {imageFile && (
+                    <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }} className="text-gray-500 hover:text-rose-400 transition-colors text-sm">Remove</button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Stats (optional) */}
-            <div className="border-t border-white/5 pt-4 mt-4">
-              <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-display">Cricket Stats (Optional)</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Matches</label>
-                  <input type="number" value={form.matches} onChange={e => set('matches', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Runs</label>
-                  <input type="number" value={form.runs} onChange={e => set('runs', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Wickets</label>
-                  <input type="number" value={form.wickets} onChange={e => set('wickets', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Batting Avg</label>
-                  <input type="number" step="0.1" value={form.batting_avg} onChange={e => set('batting_avg', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Batting SR</label>
-                  <input type="number" step="0.1" value={form.batting_sr} onChange={e => set('batting_sr', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Bowl Avg</label>
-                  <input type="number" step="0.1" value={form.bowling_avg} onChange={e => set('bowling_avg', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Bowl Econ</label>
-                  <input type="number" step="0.1" value={form.bowling_econ} onChange={e => set('bowling_econ', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" />
+            {hasStatsFields && (
+              <div className="border-t border-white/5 pt-4 mt-4">
+                <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-display">Cricket Stats (Optional)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {fc('matches').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Matches</label>
+                      <input type="number" value={form.matches} onChange={e => set('matches', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('matches').required} />
+                    </div>
+                  )}
+                  {fc('runs').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Runs</label>
+                      <input type="number" value={form.runs} onChange={e => set('runs', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('runs').required} />
+                    </div>
+                  )}
+                  {fc('wickets').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Wickets</label>
+                      <input type="number" value={form.wickets} onChange={e => set('wickets', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('wickets').required} />
+                    </div>
+                  )}
+                  {fc('batting_avg').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Batting Avg</label>
+                      <input type="number" step="0.1" value={form.batting_avg} onChange={e => set('batting_avg', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('batting_avg').required} />
+                    </div>
+                  )}
+                  {fc('batting_sr').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Batting SR</label>
+                      <input type="number" step="0.1" value={form.batting_sr} onChange={e => set('batting_sr', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('batting_sr').required} />
+                    </div>
+                  )}
+                  {fc('bowling_avg').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Bowl Avg</label>
+                      <input type="number" step="0.1" value={form.bowling_avg} onChange={e => set('bowling_avg', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('bowling_avg').required} />
+                    </div>
+                  )}
+                  {fc('bowling_econ').visible && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Bowl Econ</label>
+                      <input type="number" step="0.1" value={form.bowling_econ} onChange={e => set('bowling_econ', e.target.value)} className={inputClass + ' text-sm py-2'} placeholder="0" required={fc('bowling_econ').required} />
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             <motion.button
               type="submit"

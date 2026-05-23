@@ -63,13 +63,15 @@ export default function Login() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Username</label>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-400 mb-1.5">Username</label>
               <input
+                id="username"
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 className="w-full px-4 py-3.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all"
                 placeholder="Enter username"
+                autoComplete="username"
               />
             </motion.div>
 
@@ -78,13 +80,15 @@ export default function Login() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
               <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 focus:border-accent-gold/30 outline-none transition-all"
                 placeholder="Enter password"
+                autoComplete="current-password"
               />
             </motion.div>
 
@@ -93,6 +97,7 @@ export default function Login() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl"
+                role="alert"
               >
                 {error}
               </motion.div>

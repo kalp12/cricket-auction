@@ -98,6 +98,8 @@ export default function AuctionOverlay() {
   const [soldOverlay, setSoldOverlay] = useState<'sold' | 'unsold' | null>(null)
   const [soldTeam, setSoldTeam] = useState<TeamData | null>(null)
   const [soldAmount, setSoldAmount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
 
   // Timer
   const timerValue = useRef(0)
@@ -141,6 +143,8 @@ export default function AuctionOverlay() {
   useEffect(() => {
     if (!auctionId) return
     const fetchData = async () => {
+      setLoading(true)
+      setFetchError('')
       try {
         const token = localStorage.getItem('token')
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
@@ -165,7 +169,12 @@ export default function AuctionOverlay() {
             setCurrentTeam(t || null)
           }
         }
-      } catch (e) { console.error('Overlay fetch error:', e) }
+      } catch (e: any) {
+        console.error('Overlay fetch error:', e)
+        setFetchError(e?.message || 'Failed to load auction data')
+      } finally {
+        setLoading(false)
+      }
     }
     fetchData()
   }, [auctionId])
@@ -271,6 +280,28 @@ export default function AuctionOverlay() {
   const currentTimerMax = timerMax.current
   const overlayBgUrl = auction?.overlay_bg ? (auction.overlay_bg.startsWith('http') ? auction.overlay_bg : `http://localhost:8000${auction.overlay_bg}`) : null
 
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-surface-0 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-accent-gold/30 border-t-accent-gold rounded-full animate-spin" />
+          <div className="text-gray-400 text-sm font-display tracking-wider">LOADING AUCTION...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="fixed inset-0 bg-surface-0 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-400 text-xl font-display tracking-wider mb-2">AUCTION LOAD FAILED</div>
+          <div className="text-gray-500 text-sm">{fetchError}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="fixed inset-0 bg-surface-0 text-white overflow-hidden"
@@ -371,7 +402,7 @@ export default function AuctionOverlay() {
               <div className="text-gray-400 text-sm mb-2 uppercase tracking-widest">
                 {currentPlayer.role} — {currentPlayer.country}
               </div>
-              <h2 className="font-display text-7xl tracking-wide text-white mb-2">{currentPlayer.name}</h2>
+              <h2 className="font-display text-4xl md:text-7xl tracking-wide text-white mb-2 break-words">{currentPlayer.name}</h2>
               <div className="text-gray-500 text-sm mb-6">
                 Base Price: {formatPrice(currentPlayer.base_price)}
               </div>
@@ -421,7 +452,7 @@ export default function AuctionOverlay() {
         </div>
 
         {/* Right Sidebar: Team Budgets */}
-        <div className="w-72 bg-surface-1/30 backdrop-blur-lg border-l border-white/5 flex flex-col overflow-hidden py-4 px-3">
+        <div className="w-56 md:w-72 bg-surface-1/30 backdrop-blur-lg border-l border-white/5 flex flex-col overflow-hidden py-4 px-3">
           <div className="flex items-center justify-between mb-3 px-1">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Teams</h3>
           </div>

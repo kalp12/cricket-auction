@@ -19,20 +19,24 @@ export default function Modal({ open, onClose, title, children, className = '' }
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title || 'Dialog'}
         >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.2, ease: [0.34, 1.56, 0.64, 1] }}
-            className={`relative glass-strong rounded-2xl p-6 w-full max-w-lg mx-4 border border-white/10 ${className}`}
+            className={`relative glass-strong rounded-2xl p-6 w-full max-w-lg mx-4 ${className}`}
           >
             {title && (
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-display text-xl tracking-wide text-white">{title}</h3>
                 <button
                   onClick={onClose}
+                  aria-label="Close dialog"
                   className="w-8 h-8 rounded-lg glass flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -42,6 +46,7 @@ export default function Modal({ open, onClose, title, children, className = '' }
             {!title && (
               <button
                 onClick={onClose}
+                aria-label="Close dialog"
                 className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />

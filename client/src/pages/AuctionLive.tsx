@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
-  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp
+  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search
 } from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound } from '../api'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
-import { EmptyState } from '../components/ui'
+import { EmptyState, Skeleton, SkeletonLine, SkeletonCircle } from '../components/ui'
 import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
 import toast from 'react-hot-toast'
 
@@ -75,9 +75,12 @@ export default function AuctionLive() {
   const [currentPlayer, setCurrentPlayer] = useState<any>(null)
   const [status, setStatus] = useState('waiting')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const [showShortcuts, setShowShortcuts] = useState(true)
   const [notificationsOn, setNotificationsOn] = useState(areNotificationsEnabled())
   const [showSoundBoard, setShowSoundBoard] = useState(false)
+const [playerSearch, setPlayerSearch] = useState('')
+const [showPlayerSearch, setShowPlayerSearch] = useState(false)
 
   const currentPlayerRef = useRef(currentPlayer)
   currentPlayerRef.current = currentPlayer
@@ -115,6 +118,7 @@ export default function AuctionLive() {
 
   // Build shortcut key map
   const keyMap = useRef<Record<string, Team>>({})
+  const playerSearchRef = useRef<HTMLInputElement>(null)
 
   const buildKeyMap = useCallback((teamsList: Team[]) => {
     const map: Record<string, Team> = {}
@@ -130,6 +134,8 @@ export default function AuctionLive() {
   // Fetch data
   const fetchData = useCallback(async () => {
     if (!auctionId) return
+    setLoading(true)
+    setError('')
     try {
       const [auctionData, teamsData, slabsData, playersData] = await Promise.all([
         getAuction(Number(auctionId)), getTeams(Number(auctionId)), getSlabs(Number(auctionId)), getPlayers(Number(auctionId)),
@@ -144,7 +150,13 @@ export default function AuctionLive() {
         setCurrentPlayer(p || null)
       }
       buildKeyMap(teamsData)
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || e?.message || 'Failed to load auction data'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
   }, [auctionId, buildKeyMap])
 
   // WebSocket connection
@@ -220,10 +232,10 @@ export default function AuctionLive() {
     catch (e: any) { setError(e?.response?.data?.detail || 'Failed to start') }
   }
 
-  const handleNextPlayer = async () => {
+  const handleNextPlayer = async (playerId?: number) => {
     if (!auctionId) return
     try {
-      await nextPlayer(Number(auctionId))
+      await nextPlayer(Number(auctionId), playerId)
       setBidEvents([])
       const timerMode = auction?.timer_mode || 'auto'
       if (timerMode === 'auto') { const newTimer = auction?.timer_seconds || 30; setTimer(newTimer); startCountdown() }
@@ -306,12 +318,52 @@ export default function AuctionLive() {
 
   const bidIdCounter = useRef(0)
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface-0 text-white relative overflow-hidden noise-bg">
+        <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-3 flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <Skeleton className="w-5 h-5" />
+            <Skeleton className="w-32 h-6" />
+            <Skeleton className="w-16 h-5" />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Skeleton className="w-20 h-5" />
+            <Skeleton className="w-20 h-5" />
+            <Skeleton className="w-8 h-8 !rounded-full" />
+          </div>
+        </div>
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
+          <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-0 items-center justify-center">
+            <div className="text-center space-y-4">
+              <Skeleton className="w-48 h-6 mx-auto" />
+              <Skeleton className="w-64 h-10 mx-auto" />
+              <Skeleton className="w-40 h-5 mx-auto" />
+              <Skeleton className="w-56 h-24 mx-auto rounded-2xl mt-8" />
+            </div>
+          </div>
+          <div className="w-full lg:w-80 bg-surface-1/40 backdrop-blur-lg border-t lg:border-t-0 lg:border-l border-white/5 p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <SkeletonCircle size="40px" />
+                <div className="flex-1 space-y-2">
+                  <SkeletonLine width="60%" height="14px" />
+                  <SkeletonLine width="40%" height="12px" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-surface-0 text-white relative overflow-hidden noise-bg">
       {/* Top Bar */}
       <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-3 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
-          <button onClick={() => navigate(`/auctions/${auctionId}`)} className="text-gray-500 hover:text-white transition-colors shrink-0">
+          <button onClick={() => navigate(`/auctions/${auctionId}`)} aria-label="Back to auction" className="text-gray-500 hover:text-white transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-display text-lg md:text-2xl tracking-wide truncate">{auction?.name || 'AUCTION'}</h1>
@@ -334,17 +386,17 @@ export default function AuctionLive() {
           <button
             onClick={() => window.open(`/overlay/${auctionId}`, '_blank', 'width=1920,height=1080')}
             className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
-            title="Open Broadcast Overlay"
+            title="Open Broadcast Overlay" aria-label="Open broadcast overlay"
           >
             <ExternalLink className="w-4 h-4" /> Overlay
           </button>
           <button
             onClick={() => setShowSoundBoard(!showSoundBoard)}
-            className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}
+            aria-label="Toggle sound board" className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}
           >
             <Volume2 className="w-4 h-4" /> Sounds
           </button>
-          <button onClick={() => setShowShortcuts(!showShortcuts)} className="text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors">
+          <button onClick={() => setShowShortcuts(!showShortcuts)} aria-label="Toggle keyboard shortcuts" className="text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors">
             <Keyboard className="w-4 h-4" /> Keys
           </button>
           {isNotificationSupported() && (
@@ -352,7 +404,7 @@ export default function AuctionLive() {
               {notificationsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
           )}
-          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} className="text-gray-500 hover:text-white transition-colors shrink-0">
+          <button onClick={() => navigate(`/auctions/${auctionId}/settings`)} aria-label="Settings" className="text-gray-500 hover:text-white transition-colors shrink-0">
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -360,7 +412,7 @@ export default function AuctionLive() {
 
       {/* Error bar */}
       {error && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-500/10 border-b border-rose-500/20 text-rose-300 px-4 py-2 text-sm text-center">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-500/10 border-b border-rose-500/20 text-rose-300 px-4 py-2 text-sm text-center" role="alert">
           {error} <button onClick={() => setError('')} className="ml-2 text-rose-400 font-bold">×</button>
         </motion.div>
       )}
@@ -410,7 +462,7 @@ export default function AuctionLive() {
                 <div className="text-gray-600 text-sm mb-4">Base: {formatPrice(currentPlayer.base_price)}</div>
 
                 {/* Bid display */}
-                <div className="glass-strong rounded-2xl px-6 md:px-10 py-4 md:py-6 inline-block">
+                <div className="glass-strong rounded-2xl px-6 md:px-10 py-4 md:py-6 inline-block" aria-live="polite" aria-atomic="true">
                   <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
                   <motion.div
                     key={currentBid}
@@ -460,7 +512,7 @@ export default function AuctionLive() {
             ) : status === 'live' ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
                 <div className="text-gray-600 text-xl mb-4">No player selected</div>
-                <motion.button onClick={handleNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
+                <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
                   <Shuffle className="w-5 h-5" /> Random Player
                 </motion.button>
               </motion.div>
@@ -481,8 +533,8 @@ export default function AuctionLive() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-4 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-center gap-2 md:gap-4"
             >
-              <motion.button onClick={handleNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
-                <Shuffle className="w-4 h-4" /> Next
+              <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
+                <Shuffle className="w-4 h-4" /> Random
               </motion.button>
               <motion.button onClick={handleSold} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20">
                 <Gavel className="w-4 h-4" /> SOLD
@@ -505,7 +557,7 @@ export default function AuctionLive() {
         </div>
 
         {/* Sidebar: Teams + Bid History */}
-        <div className="w-full lg:w-80 bg-surface-1/40 backdrop-blur-lg border-l-0 lg:border-l border-t lg:border-t-0 border-white/5 flex flex-col max-h-[50vh] lg:max-h-none overflow-hidden">
+        <div className="w-full lg:w-80 bg-surface-1/40 backdrop-blur-lg border-l-0 lg:border-l border-t lg:border-t-0 border-white/5 flex flex-col max-h-[60vh] lg:max-h-none overflow-hidden">
           {/* Team cards — clickable for bidding */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2 dark-scrollbar">
             <div className="flex items-center justify-between mb-2 px-1">

@@ -16,6 +16,8 @@ import Settings from './pages/Settings'
 import AuctionHistory from './pages/AuctionHistory'
 import AuctionStats from './pages/AuctionStats'
 import PlayerImport from './pages/PlayerImport'
+import StatsImport from './pages/StatsImport'
+import TeamImport from './pages/TeamImport'
 import PlayerRegister from './pages/PlayerRegister'
 import CommandPalette from './components/CommandPalette'
 
@@ -70,6 +72,8 @@ export default function App() {
           <Route path="auctions/:auctionId/teams" element={<Teams />} />
           <Route path="auctions/:auctionId/players" element={<Players />} />
           <Route path="auctions/:auctionId/players/import" element={<PlayerImport />} />
+          <Route path="auctions/:auctionId/teams/import" element={<TeamImport />} />
+          <Route path="auctions/:auctionId/players/stats-import" element={<StatsImport />} />
           <Route path="auction-panel" element={<AuctionPanel />} />
           <Route path="auctions/:auctionId/live" element={<AuctionLive />} />
           <Route path="auctions/:auctionId/settings" element={<Settings />} />

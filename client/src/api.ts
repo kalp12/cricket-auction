@@ -42,7 +42,7 @@ export const deleteAuction = async (id: number) =>
 export const startAuctionById = async (id: number) =>
   (await axios.post(`${BASE}/api/auctions/${id}/start`, null, { headers: headers() })).data
 
-export const nextPlayer = async (id: number) =>
+export const nextPlayer = async (id: number, playerId?: number) =>
   (await axios.post(`${BASE}/api/auctions/${id}/next-player`, null, { headers: headers() })).data
 
 // ── Auction Flow (single active auction) ──────────────
@@ -171,6 +171,52 @@ export const uploadPlayerFile = async (auctionId: number, file: File) => {
 export const importPlayers = async (auctionId: number, mapping: Record<string, string>, rows: any[]) =>
   (await axios.post(`${BASE}/api/import/players/commit`, { auction_id: auctionId, mapping, rows }, { headers: headers() })).data
 
+// ── Team Import ───────────────────────────────────────
+export const downloadTeamTemplate = async () =>
+  (await axios.get(`${BASE}/api/import/teams/template`, { headers: headers(), responseType: 'blob' })).data
+
+export const uploadTeamFile = async (auctionId: number, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/import/teams/upload`, formData, {
+    params: { auction_id: auctionId },
+    headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+export const importTeams = async (auctionId: number, mapping: Record<string, string>, rows: any[]) =>
+  (await axios.post(`${BASE}/api/import/teams/commit`, { auction_id: auctionId, mapping, rows }, { headers: headers() })).data
+
+
+// ── Export ────────────────────────────────────────────
+export const exportPlayers = async (auctionId: number, format: 'xlsx' | 'csv' = 'xlsx') =>
+  (await axios.get(`${BASE}/api/export/players`, { params: { auction_id: auctionId, format }, headers: headers(), responseType: 'blob' })).data
+
+export const exportAuctionResults = async (auctionId: number, format: 'xlsx' | 'csv' = 'xlsx') =>
+  (await axios.get(`${BASE}/api/export/auction-results`, { params: { auction_id: auctionId, format }, headers: headers(), responseType: 'blob' })).data
+
+export const exportTeamRosters = async (auctionId: number, format: 'xlsx' | 'csv' = 'xlsx') =>
+  (await axios.get(`${BASE}/api/export/team-rosters`, { params: { auction_id: auctionId, format }, headers: headers(), responseType: 'blob' })).data
+
+
+// ── Stats Import ──────────────────────────────────────
+export const uploadStatsFile = async (auctionId: number, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/stats-import/upload`, formData, {
+    params: { auction_id: auctionId },
+    headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+export const commitStatsImport = async (auctionId: number, source: string, mapping: Record<string, string>, rows: any[], playerOverrides: Record<string, number>) =>
+  (await axios.post(`${BASE}/api/stats-import/commit`, { auction_id: auctionId, source, mapping, rows, player_overrides: playerOverrides }, { headers: headers() })).data
+
+export const getStatsHistory = async (playerId: number) =>
+  (await axios.get(`${BASE}/api/stats-import/history/${playerId}`, { headers: headers() })).data
+
 // ── Player Registration ───────────────────────────────
 export const submitRegistration = async (auctionId: number, data: any) =>
   (await axios.post(`${BASE}/api/registration/${auctionId}/submit`, data)).data
@@ -189,3 +235,18 @@ export const rejectRegistration = async (registrationId: number) =>
 
 export const toggleRegistration = async (auctionId: number) =>
   (await axios.post(`${BASE}/api/registration/${auctionId}/toggle`, null, { headers: headers() })).data
+
+export const uploadRegistrationImage = async (auctionId: number, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await axios.post(`${BASE}/api/registration/${auctionId}/upload-image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data // { url: "/uploads/abc123.png" }
+}
+
+export const setRegistrationDeadline = async (auctionId: number, deadline: string | null) =>
+  (await axios.put(`${BASE}/api/registration/${auctionId}/deadline`, null, { params: { deadline }, headers: headers() })).data
+
+export const updateRegistrationFormConfig = async (auctionId: number, config: any) =>
+  (await axios.put(`${BASE}/api/registration/${auctionId}/form-config`, config, { headers: headers() })).data

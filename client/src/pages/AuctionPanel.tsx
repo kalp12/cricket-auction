@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Gavel, Zap } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { listAuctions } from '../api'
 import { SkeletonGrid, EmptyState } from '../components/ui'
 
@@ -20,7 +21,7 @@ export default function AuctionPanel() {
   useEffect(() => {
     const fetchAuctions = async () => {
       try { const data = await listAuctions(); setAuctions(data) }
-      catch { /* empty */ } finally { setLoading(false) }
+      catch (e: any) { if (e?.response?.status === 401) { localStorage.removeItem('token'); navigate('/login') } else { toast.error('Failed to load auctions') } } finally { setLoading(false) }
     }
     fetchAuctions()
   }, [])
@@ -45,7 +46,7 @@ export default function AuctionPanel() {
     <div className="animate-fade-in relative noise-bg">
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-accent-gold/5 rounded-full blur-[100px] pointer-events-none" />
 
-      <h1 className="font-display text-3xl md:text-5xl tracking-wide gradient-text mb-2">AUCTION PANEL</h1>
+      <h1 className="font-display text-3xl md:text-5xl tracking-wider gradient-text mb-2">AUCTION PANEL</h1>
       <p className="text-gray-500 mb-8">Select an auction to enter the live room</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
