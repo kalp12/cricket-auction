@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { Gavel } from 'lucide-react'
 import { useSoundBoard } from '../hooks/useSoundBoard'
+import { getAuction, getTeams, getAuctionState, WS_BASE, assetUrl } from '../api'
 
 interface PlayerData {
   id: number
@@ -77,7 +78,7 @@ function SponsorSlot({ src, position }: { src?: string; position: string }) {
     'bottom-right': 'bottom-6 right-6',
   }
   if (!src) return null
-  const url = src.startsWith('http') ? src : `http://localhost:8000${src}`
+  const url = assetUrl(src)!
   return (
     <div className={`absolute ${posClasses[position]} z-10`}>
       <img src={url} alt="Sponsor" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ maxHeight: 60, maxWidth: 120 }} />
@@ -146,14 +147,10 @@ export default function AuctionOverlay() {
       setLoading(true)
       setFetchError('')
       try {
-        const token = localStorage.getItem('token')
-        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-        const [auctionRes, teamsRes] = await Promise.all([
-          fetch(`http://localhost:8000/api/auctions/${auctionId}`, { headers }),
-          fetch(`http://localhost:8000/api/teams?auction_id=${auctionId}`, { headers }),
+        const [auctionData, teamsData] = await Promise.all([
+          getAuction(Number(auctionId)),
+          getTeams(Number(auctionId)),
         ])
-        const auctionData = await auctionRes.json()
-        const teamsData = await teamsRes.json()
         setAuction(auctionData)
         setTeams(teamsData)
         setCurrentBid(auctionData.current_bid)
@@ -161,8 +158,7 @@ export default function AuctionOverlay() {
         timerMode.current = auctionData.timer_mode || 'auto'
 
         if (auctionData.current_player_id) {
-          const pRes = await fetch(`http://localhost:8000/api/auction/state?auction_id=${auctionId}`, { headers })
-          const state = await pRes.json()
+          const state = await getAuctionState(Number(auctionId))
           if (state.current_player) setCurrentPlayer(state.current_player)
           if (auctionData.current_team_id) {
             const t = teamsData.find((tm: TeamData) => tm.id === auctionData.current_team_id)
@@ -170,7 +166,6 @@ export default function AuctionOverlay() {
           }
         }
       } catch (e: any) {
-        console.error('Overlay fetch error:', e)
         setFetchError(e?.message || 'Failed to load auction data')
       } finally {
         setLoading(false)
@@ -183,7 +178,7 @@ export default function AuctionOverlay() {
   useEffect(() => {
     if (!auctionId) return
 
-    const ws = new WebSocket(`ws://localhost:8000/ws/auction/${auctionId}`)
+    const ws = new WebSocket(`${WS_BASE}/ws/auction/${auctionId}`)
     wsRef.current = ws
 
     ws.onmessage = (event) => {
@@ -278,7 +273,7 @@ export default function AuctionOverlay() {
 
   const currentTimerValue = timerValue.current
   const currentTimerMax = timerMax.current
-  const overlayBgUrl = auction?.overlay_bg ? (auction.overlay_bg.startsWith('http') ? auction.overlay_bg : `http://localhost:8000${auction.overlay_bg}`) : null
+  const overlayBgUrl = assetUrl(auction?.overlay_bg)
 
   if (loading) {
     return (
@@ -347,7 +342,7 @@ export default function AuctionOverlay() {
                 <motion.img
                   initial={{ rotate: -12, scale: 0.5 }}
                   animate={{ rotate: -8, scale: 1 }}
-                  src={auction.sold_stamp.startsWith('http') ? auction.sold_stamp : `http://localhost:8000${auction.sold_stamp}`}
+                  src={assetUrl(auction.sold_stamp)!}
                   alt="SOLD"
                   className="max-w-md max-h-48 drop-shadow-[0_0_60px_rgba(34,197,94,0.5)]"
                 />
@@ -355,7 +350,7 @@ export default function AuctionOverlay() {
                 <motion.img
                   initial={{ rotate: -8, scale: 0.5 }}
                   animate={{ rotate: -5, scale: 1 }}
-                  src={auction.unsold_stamp.startsWith('http') ? auction.unsold_stamp : `http://localhost:8000${auction.unsold_stamp}`}
+                  src={assetUrl(auction.unsold_stamp)!}
                   alt="UNSOLD"
                   className="max-w-md max-h-48 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]"
                 />
@@ -500,7 +495,7 @@ export default function AuctionOverlay() {
           {auction?.lower_third_banner && (
             <div className="mt-3 px-1">
               <img
-                src={auction.lower_third_banner.startsWith('http') ? auction.lower_third_banner : `http://localhost:8000${auction.lower_third_banner}`}
+                src={assetUrl(auction.lower_third_banner)!}
                 alt="Banner"
                 className="w-full rounded-lg opacity-80"
                 style={{ maxHeight: 50, objectFit: 'contain' }}

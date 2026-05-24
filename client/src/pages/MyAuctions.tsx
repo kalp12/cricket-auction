@@ -5,7 +5,7 @@ import { PlusCircle, ArrowLeft, Trash2, Pencil, Calendar, Users, Gavel } from 'l
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { listAuctions, deleteAuction } from '../api'
+import { listAuctions, deleteAuction, assetUrl } from '../api'
 import { SkeletonGrid, EmptyState } from '../components/ui'
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -117,7 +117,7 @@ export default function MyAuctions() {
             {auctions.map((auction, i) => {
               const s = statusConfig[auction.status] || statusConfig.waiting
               const imageUrl = auction.image_url
-                ? `http://localhost:8000${auction.image_url}`
+                ? assetUrl(auction.image_url)
                 : null
 
               return (

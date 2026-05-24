@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
 import { useConfirm } from '../hooks/useConfirm'
-import { getAuction, updateAuction, deleteAuction, toggleRegistration, exportPlayers, exportAuctionResults, exportTeamRosters } from '../api'
+import { getAuction, updateAuction, deleteAuction, toggleRegistration, exportPlayers, exportAuctionResults, exportTeamRosters, assetUrl } from '../api'
 import { SkeletonLine, SkeletonCircle, SkeletonCard, SkeletonGrid, ExportMenu } from '../components/ui'
 
 const formatPrice = (val: number) => {
@@ -114,7 +114,7 @@ export default function AuctionDetail() {
             <div className="flex items-center gap-4">
               {auction.image_url ? (
                 <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10">
-                  <img src={`http://localhost:8000${auction.image_url}`} alt={auction.name} className="w-full h-full object-cover" />
+                  <img src={assetUrl(auction.image_url)!} alt={auction.name} className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-14 h-14 bg-gradient-to-br from-accent-gold to-amber-600 rounded-xl flex items-center justify-center">

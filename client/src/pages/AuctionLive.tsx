@@ -5,7 +5,7 @@ import {
   ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
   Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search
 } from 'lucide-react'
-import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound } from '../api'
+import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, WS_BASE } from '../api'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
 import { EmptyState, Skeleton, SkeletonLine, SkeletonCircle } from '../components/ui'
 import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
@@ -164,7 +164,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     if (!auctionId) return
     fetchData()
 
-    const ws = new WebSocket(`ws://localhost:8000/ws/auction/${auctionId}`)
+    const ws = new WebSocket(`${WS_BASE}/ws/auction/${auctionId}`)
     wsRef.current = ws
 
     ws.onmessage = (event) => {

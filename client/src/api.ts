@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 const BASE = 'http://localhost:8000'
+const WS_BASE = 'ws://localhost:8000'
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` })
+
+export const assetUrl = (url: string | null | undefined) => url ? (url.startsWith('http') ? url : `${BASE}${url}`) : null
 
 // ── Auth ──────────────────────────────────────────────
 export const login = async (u: string, p: string) => {
@@ -46,8 +49,8 @@ export const nextPlayer = async (id: number, playerId?: number) =>
   (await axios.post(`${BASE}/api/auctions/${id}/next-player`, null, { headers: headers() })).data
 
 // ── Auction Flow (single active auction) ──────────────
-export const getAuctionState = async () =>
-  (await axios.get(`${BASE}/api/auction/state`, { headers: headers() })).data
+export const getAuctionState = async (auctionId?: number) =>
+  (await axios.get(`${BASE}/api/auction/state`, { params: auctionId ? { auction_id: auctionId } : {}, headers: headers() })).data
 
 export const startAuction = async (player_id: number, timer_seconds = 60) =>
   (await axios.post(`${BASE}/api/auction/start`, null, { params: { player_id, timer_seconds }, headers: headers() })).data
@@ -141,7 +144,7 @@ export const uploadImage = async (file: File) => {
   const res = await axios.post(`${BASE}/api/upload/image`, formData, {
     headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
   })
-  return res.data // { url: "/uploads/abc123.png" }
+  return res.data
 }
 
 // ── Audio Upload ──────────────────────────────────────
@@ -151,7 +154,7 @@ export const uploadAudio = async (file: File) => {
   const res = await axios.post(`${BASE}/api/upload/audio`, formData, {
     headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
   })
-  return res.data // { url: "/uploads/abc123.mp3" }
+  return res.data
 }
 
 // ── Player Import ─────────────────────────────────────
@@ -165,7 +168,7 @@ export const uploadPlayerFile = async (auctionId: number, file: File) => {
     params: { auction_id: auctionId },
     headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
   })
-  return res.data // { headers: [...], rows: [...] }
+  return res.data
 }
 
 export const importPlayers = async (auctionId: number, mapping: Record<string, string>, rows: any[]) =>
@@ -242,7 +245,7 @@ export const uploadRegistrationImage = async (auctionId: number, file: File) => 
   const res = await axios.post(`${BASE}/api/registration/${auctionId}/upload-image`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return res.data // { url: "/uploads/abc123.png" }
+  return res.data
 }
 
 export const setRegistrationDeadline = async (auctionId: number, deadline: string | null) =>
@@ -250,3 +253,5 @@ export const setRegistrationDeadline = async (auctionId: number, deadline: strin
 
 export const updateRegistrationFormConfig = async (auctionId: number, config: any) =>
   (await axios.put(`${BASE}/api/registration/${auctionId}/form-config`, config, { headers: headers() })).data
+
+export { BASE, WS_BASE }

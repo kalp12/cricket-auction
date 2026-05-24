@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getAuctionState, getPlayers, getTeams,
-         startAuction, placeBid, soldPlayer, unsoldPlayer } from '../api'
+         startAuction, placeBid, soldPlayer, unsoldPlayer, WS_BASE } from '../api'
 
 export default function Auction() {
   const [auction, setAuction] = useState<any>(null)
@@ -20,7 +20,7 @@ export default function Auction() {
         setPlayers(p.players || p)
         setTeams(t)
       }
-    } catch(e) { console.error(e) }
+    } catch { /* state unavailable */ }
   }
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function Auction() {
         const state = await getAuctionState()
         const auctionId = state?.current_auction?.id
         if (auctionId) {
-          ws = new WebSocket(`ws://localhost:8000/ws/auction/${auctionId}`)
+          ws = new WebSocket(`${WS_BASE}/ws/auction/${auctionId}`)
           ws.onmessage = () => fetchAll()
         }
       } catch { /* no auction yet */ }

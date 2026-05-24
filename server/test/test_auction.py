@@ -1538,7 +1538,458 @@ class TestWebSocket:
 
 
 # ═══════════════════════════════════════════════════════════
-# 12. ROOT + MISC
+# 12. STATS IMPORT
+# ═══════════════════════════════════════════════════════════
+
+class TestStatsImport:
+    def test_upload_stats_csv(self):
+        seed_auction()
+        create_player(name="Virat Kohli", matches=200, runs=10000, wickets=4, batting_avg=55.0, batting_sr=90.0, bowling_avg=0, bowling_econ=0)
+        csv_content = "Player,Matches,Runs,Wickets\nVirat Kohli,250,12000,5\n"
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("stats.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert "headers" in data
+        assert "suggested_mapping" in data
+        assert "matched_rows" in data
+        assert data["total_rows"] == 1
+
+    def test_upload_stats_xlsx(self):
+        seed_auction()
+        create_player(name="Steve Smith")
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Player", "Matches", "Runs"])
+        ws.append(["Steve Smith", "100", "8000"])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("stats.xlsx", buf.read(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total_rows"] == 1
+
+    def test_upload_stats_nonexistent_auction(self):
+        csv_content = "Player,Matches\nTest,10\n"
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": 99999},
+            files={"file": ("stats.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 404
+
+    def test_upload_stats_unsupported_format(self):
+        seed_auction()
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("stats.txt", "some content", "text/plain")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_upload_stats_empty_csv(self):
+        seed_auction()
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("empty.csv", "", "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_commit_stats_import(self):
+        seed_auction()
+        create_player(name="Jasprit Bumrah", matches=50, runs=100, wickets=80, batting_avg=5.0, batting_sr=60.0, bowling_avg=20.0, bowling_econ=6.5)
+        r = client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "ESPN Cricinfo",
+            "mapping": {"0": "name", "1": "matches", "2": "runs", "3": "wickets"},
+            "rows": [["Jasprit Bumrah", "60", "200", "100"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["updates_applied"] == 1
+        assert data["total_rows"] == 1
+
+    def test_commit_stats_import_with_fuzzy_match(self):
+        seed_auction()
+        create_player(name="Ravindra Jadeja", matches=100, runs=2000, wickets=50)
+        r = client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Cricbuzz",
+            "mapping": {"0": "name", "1": "matches"},
+            "rows": [["R Jadeja", "120"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["updates_applied"] == 1
+
+    def test_commit_stats_import_player_override(self):
+        seed_auction()
+        p = create_player(name="MS Dhoni", matches=300, runs=10000)
+        player_id = p.json()["id"]
+        r = client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Manual",
+            "mapping": {"1": "matches"},
+            "rows": [["Unknown Name", "350"]],
+            "player_overrides": {"0": player_id},
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["updates_applied"] == 1
+
+    def test_commit_stats_import_no_changes(self):
+        seed_auction()
+        create_player(name="Rohit Sharma", matches=200, runs=9000)
+        r = client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Test",
+            "mapping": {"0": "name", "1": "matches"},
+            "rows": [["Rohit Sharma", "200"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["updates_applied"] == 0  # No change since matches is already 200
+
+    def test_commit_stats_import_missing_auction_id(self):
+        r = client.post("/api/stats-import/commit", json={
+            "mapping": {},
+            "rows": [],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        assert r.status_code == 400
+
+    def test_commit_stats_import_unmatched_player(self):
+        seed_auction()
+        r = client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Test",
+            "mapping": {"0": "name", "1": "matches"},
+            "rows": [["Nonexistent Player", "100"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["updates_applied"] == 0
+        assert len(data["errors"]) > 0
+
+    def test_get_stats_history(self):
+        seed_auction()
+        p = create_player(name="History Player", matches=50, runs=2000, wickets=10, batting_avg=40.0, batting_sr=80.0, bowling_avg=30.0, bowling_econ=7.0)
+        player_id = p.json()["id"]
+        # First import
+        client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Source A",
+            "mapping": {"0": "name", "1": "matches"},
+            "rows": [["History Player", "75"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        # Second import
+        client.post("/api/stats-import/commit", json={
+            "auction_id": AUCTION_ID,
+            "source": "Source B",
+            "mapping": {"0": "name", "1": "runs"},
+            "rows": [["History Player", "3000"]],
+            "player_overrides": {},
+        }, headers=auth_headers())
+        r = client.get(f"/api/stats-import/history/{player_id}", headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["player_id"] == player_id
+        assert data["player_name"] == "History Player"
+        assert "current_stats" in data
+        assert len(data["history"]) == 2
+
+    def test_get_stats_history_nonexistent_player(self):
+        r = client.get("/api/stats-import/history/99999", headers=auth_headers())
+        assert r.status_code == 404
+
+    def test_upload_stats_auto_suggests_mapping(self):
+        seed_auction()
+        create_player(name="KL Rahul")
+        csv_content = "Player,Mat,Runs,Wkt,Bat Avg,SR,Bowl Avg,Econ\nKL Rahul,80,3000,5,40.5,85.3,50.0,8.2\n"
+        r = client.post(
+            "/api/stats-import/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("stats.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        mapping = data["suggested_mapping"]
+        # Check that common aliases are auto-mapped
+        assert "name" in mapping.values() or "player_id" in mapping.values()
+
+
+# ═══════════════════════════════════════════════════════════
+# 13. PLAYER IMPORT
+# ═══════════════════════════════════════════════════════════
+
+class TestPlayerImport:
+    def test_download_template(self):
+        seed_auction()
+        r = client.get(
+            "/api/import/players/template",
+            params={"auction_id": AUCTION_ID},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        assert "spreadsheetml" in r.headers.get("content-type", "")
+
+    def test_upload_player_csv(self):
+        seed_auction()
+        csv_content = "Player Name,Role,Country,Base Price,Matches,Runs\nShubman Gill,batsman,India,1500000,50,2500\n"
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("players.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert "headers" in data
+        assert "suggested_mapping" in data
+        assert data["total_rows"] == 1
+
+    def test_upload_player_xlsx(self):
+        seed_auction()
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Player Name", "Role", "Country", "Base Price"])
+        ws.append(["Hardik Pandya", "allrounder", "India", 2000000])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("players.xlsx", buf.read(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total_rows"] == 1
+
+    def test_upload_player_nonexistent_auction(self):
+        csv_content = "Player Name,Role,Country,Base Price\nTest,batsman,India,100000\n"
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": 99999},
+            files={"file": ("players.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 404
+
+    def test_upload_player_unsupported_format(self):
+        seed_auction()
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("players.txt", "data", "text/plain")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_upload_player_empty_csv(self):
+        seed_auction()
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("empty.csv", "", "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_commit_player_import(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [["Ishan Kishan", "batsman", "India", "1200000"]],
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["players_created"] == 1
+        assert data["total_rows"] == 1
+
+    def test_commit_player_import_with_stats(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price", "4": "matches", "5": "runs", "6": "wickets", "7": "batting_avg"},
+            "rows": [["Rishabh Pant", "wicketkeeper", "India", "1500000", "60", "3000", "2", "45.5"]],
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["players_created"] == 1
+
+    def test_commit_player_import_missing_name(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"1": "role", "2": "country", "3": "base_price"},
+            "rows": [["", "batsman", "India", "100000"]],
+        }, headers=auth_headers())
+        assert r.status_code == 400
+
+    def test_commit_player_import_missing_auction_id(self):
+        r = client.post("/api/import/players/commit", json={
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [["Test", "batsman", "India", "100000"]],
+        }, headers=auth_headers())
+        assert r.status_code == 400
+
+    def test_commit_player_import_nonexistent_auction(self):
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": 99999,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [["Test", "batsman", "India", "100000"]],
+        }, headers=auth_headers())
+        assert r.status_code == 404
+
+    def test_commit_player_import_invalid_base_price(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [["Test Player", "batsman", "India", "not_a_number"]],
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["players_created"] == 0
+        assert len(data["errors"]) > 0
+
+    def test_commit_player_import_multiple_rows(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [
+                ["Player A", "batsman", "India", "500000"],
+                ["Player B", "bowler", "Australia", "800000"],
+                ["Player C", "allrounder", "England", "1200000"],
+            ],
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["players_created"] == 3
+
+    def test_upload_player_auto_suggests_mapping(self):
+        seed_auction()
+        csv_content = "Player Name,Role,Country,Base Price\nShubman Gill,batsman,India,1500000\n"
+        r = client.post(
+            "/api/import/players/upload",
+            params={"auction_id": AUCTION_ID},
+            files={"file": ("players.csv", csv_content, "text/csv")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        mapping = data["suggested_mapping"]
+        assert "name" in mapping.values()
+        assert "role" in mapping.values()
+        assert "country" in mapping.values()
+        assert "base_price" in mapping.values()
+
+    def test_commit_player_import_with_comma_price(self):
+        seed_auction()
+        r = client.post("/api/import/players/commit", json={
+            "auction_id": AUCTION_ID,
+            "mapping": {"0": "name", "1": "role", "2": "country", "3": "base_price"},
+            "rows": [["Test Player", "bowler", "India", "1,500,000"]],
+        }, headers=auth_headers())
+        assert r.status_code == 200
+        data = r.json()
+        assert data["players_created"] == 1
+
+
+# ═══════════════════════════════════════════════════════════
+# 14. UPLOAD (IMAGE + AUDIO)
+# ═══════════════════════════════════════════════════════════
+
+class TestUpload:
+    def test_upload_image_png(self):
+        # Minimal valid PNG: 1x1 transparent pixel
+        png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        r = client.post(
+            "/api/upload/image",
+            files={"file": ("test.png", png_data, "image/png")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert "url" in data
+        assert data["url"].startswith("/uploads/")
+        assert data["url"].endswith(".png")
+
+    def test_upload_image_jpg(self):
+        # Minimal JPEG
+        jpg_data = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A\x06\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xf9\xfe\xa8*(;\xff\xd9'
+        r = client.post(
+            "/api/upload/image",
+            files={"file": ("test.jpg", jpg_data, "image/jpeg")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["url"].endswith(".jpg")
+
+    def test_upload_image_invalid_extension(self):
+        r = client.post(
+            "/api/upload/image",
+            files={"file": ("test.exe", b"MZ\x90\x00", "application/octet-stream")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_upload_audio_mp3(self):
+        # Minimal MP3 header (ID3 tag start)
+        mp3_data = b'ID3\x03\x00\x00\x00\x00\x00\x00' + b'\xff\xfb\x90\x00' + b'\x00' * 100
+        r = client.post(
+            "/api/upload/audio",
+            files={"file": ("test.mp3", mp3_data, "audio/mpeg")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert "url" in data
+        assert data["url"].startswith("/uploads/")
+        assert data["url"].endswith(".mp3")
+
+    def test_upload_audio_invalid_extension(self):
+        r = client.post(
+            "/api/upload/audio",
+            files={"file": ("test.exe", b"MZ\x90\x00", "application/octet-stream")},
+            headers=auth_headers(),
+        )
+        assert r.status_code == 400
+
+    def test_serve_upload_not_found(self):
+        r = client.get("/api/upload/nonexistent_file.png")
+        assert r.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════
+# 15. ROOT + MISC
 # ═══════════════════════════════════════════════════════════
 
 class TestMisc:

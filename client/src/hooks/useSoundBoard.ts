@@ -1,6 +1,5 @@
 import { useRef, useCallback } from 'react'
-
-const BASE = 'http://localhost:8000'
+import { assetUrl } from '../api'
 
 type SoundKey = 'gavel' | 'unsold' | 'timer' | 'celebration'
 
@@ -25,7 +24,7 @@ export function useSoundBoard(auction: any | null) {
     if (!auction) return null
     const customUrl = auction[SOUND_COLUMN_MAP[key]]
     if (customUrl) {
-      return customUrl.startsWith('http') ? customUrl : `${BASE}${customUrl}`
+      return assetUrl(customUrl)
     }
     return DEFAULT_SOUNDS[key]
   }, [auction])

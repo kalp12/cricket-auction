@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image, Clock, ToggleLeft, ToggleRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio, setRegistrationDeadline, updateRegistrationFormConfig, toggleRegistration } from '../api'
+import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio, setRegistrationDeadline, updateRegistrationFormConfig, toggleRegistration, assetUrl } from '../api'
 import { SkeletonCard, SkeletonLine } from '../components/ui'
 import { X } from 'lucide-react'
 
@@ -266,7 +266,7 @@ setAuction(updated); toast.success('Image removed')
   if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-white/40 font-display text-2xl tracking-wider">LOADING...</div>
   if (!auction) return null
 
-  const assetUrl = (url: string | null | undefined) => url ? `http://localhost:8000${url}` : null
+  // assetUrl imported from api.ts
 
   return (
     <div className="animate-fade-in noise-bg min-h-screen bg-surface-0 max-w-6xl mx-auto">
@@ -560,7 +560,7 @@ setAuction(updated); toast.success('Image removed')
                       <Volume2 className="w-8 h-8 text-accent-gold" />
                       <span className="text-[10px] text-white/40 font-display tracking-wider">UPLOADED</span>
                       {auction[key] && (
-                        <audio controls src={`http://localhost:8000${auction[key]}`} className="w-full px-2 mt-1" style={{ height: 28 }} />
+                        <audio controls src={assetUrl(auction[key])!} className="w-full px-2 mt-1" style={{ height: 28 }} />
                       )}
                     </div>
                   ) : (
