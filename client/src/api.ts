@@ -279,4 +279,11 @@ export const getAuctionReplay = async (auctionId: number) =>
 export const getAuctionEvents = async (auctionId: number, afterEventId: number = 0) =>
   (await axios.get(`${BASE}/api/auctions/${auctionId}/events`, { params: { after_event_id: afterEventId }, headers: headers() })).data
 
+// ── Public (Spectator) ────────────────────────────────
+export const getPublicAuction = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/auctions/${auctionId}/public`)).data
+
+export const getPublicAuctionState = async (auctionId?: number) =>
+  (await axios.get(`${BASE}/api/auction/state/public`, { params: auctionId ? { auction_id: auctionId } : {} })).data
+
 export { BASE, WS_BASE }

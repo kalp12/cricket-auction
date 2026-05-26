@@ -20,6 +20,7 @@ from routes.stats_import import router as stats_import_router
 from routes.import_teams import router as import_teams_router
 from routes.users import router as users_router
 from routes.replay import router as replay_router
+from routes.public import router as public_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -132,6 +133,7 @@ app.include_router(stats_import_router, prefix="/api/stats-import", tags=["stats
 app.include_router(import_teams_router, prefix="/api/import", tags=["import-teams"])
 app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(replay_router, prefix="/api/auctions", tags=["replay"])
+app.include_router(public_router, prefix="/api", tags=["public"])
 app.include_router(bids_router, tags=["websocket"])
 
 

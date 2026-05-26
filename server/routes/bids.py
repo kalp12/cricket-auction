@@ -1,41 +1,52 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from db.database import get_db
 from models.models import Bid, Auction, Team, Player
 from routes.slabs import get_next_bid_amount
 from event_recorder import record_event
 import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 router = APIRouter()
 
 
 class ConnectionManager:
     def __init__(self):
-        self.connections: Dict[int, List[WebSocket]] = {}
+        # Each entry: (WebSocket, mode) where mode is "admin" or "spectator"
+        self.connections: Dict[int, List[Tuple[WebSocket, str]]] = {}
 
-    async def connect(self, auction_id: int, websocket: WebSocket):
+    async def connect(self, auction_id: int, websocket: WebSocket, mode: str = "admin"):
         await websocket.accept()
         if auction_id not in self.connections:
             self.connections[auction_id] = []
-        self.connections[auction_id].append(websocket)
+        self.connections[auction_id].append((websocket, mode))
 
     def disconnect(self, auction_id: int, websocket: WebSocket):
         if auction_id in self.connections:
-            if websocket in self.connections[auction_id]:
-                self.connections[auction_id].remove(websocket)
+            self.connections[auction_id] = [
+                (ws, m) for ws, m in self.connections[auction_id] if ws != websocket
+            ]
+
+    def get_mode(self, auction_id: int, websocket: WebSocket) -> str:
+        if auction_id in self.connections:
+            for ws, mode in self.connections[auction_id]:
+                if ws == websocket:
+                    return mode
+        return "admin"
 
     async def broadcast(self, auction_id: int, message: dict):
         if auction_id not in self.connections:
             return
         dead = []
-        for ws in self.connections[auction_id]:
+        for ws, mode in self.connections[auction_id]:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self.connections[auction_id].remove(ws)
+            self.connections[auction_id] = [
+                (w, m) for w, m in self.connections[auction_id] if w != ws
+            ]
 
 
 manager = ConnectionManager()
@@ -45,6 +56,7 @@ manager = ConnectionManager()
 async def websocket_endpoint(
     websocket: WebSocket,
     auction_id: int,
+    mode: str = Query("admin"),
     db: Session = Depends(get_db)
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -56,13 +68,13 @@ async def websocket_endpoint(
         await websocket.close(code=1008)
         return
 
-    await manager.connect(auction_id, websocket)
+    is_spectator = mode == "spectator"
+    await manager.connect(auction_id, websocket, mode)
 
     try:
-        # Send initial state with full auction data for overlay
+        # Build initial state — filter sensitive data for spectators
         player_data = None
         if auction.current_player_id:
-            from models.models import Player
             p = db.query(Player).filter(Player.id == auction.current_player_id).first()
             if p:
                 player_data = {
@@ -92,7 +104,7 @@ async def websocket_endpoint(
                     "logo_url": t.logo_url,
                 }
 
-        await websocket.send_text(json.dumps({
+        state_msg = {
             "type": "state",
             "auction_id": auction_id,
             "status": auction.status,
@@ -103,6 +115,7 @@ async def websocket_endpoint(
             "timer_mode": auction.timer_mode,
             "current_player": player_data,
             "current_team": team_data,
+            "mode": mode,  # tell client what mode they're in
             "overlay_bg": auction.overlay_bg,
             "sold_stamp": auction.sold_stamp,
             "unsold_stamp": auction.unsold_stamp,
@@ -110,7 +123,9 @@ async def websocket_endpoint(
             "sponsor_tr": auction.sponsor_tr,
             "sponsor_bl": auction.sponsor_bl,
             "sponsor_br": auction.sponsor_br,
-        }))
+        }
+
+        await websocket.send_text(json.dumps(state_msg))
 
         while True:
             data = await websocket.receive_text()
@@ -119,6 +134,13 @@ async def websocket_endpoint(
             except json.JSONDecodeError:
                 await websocket.send_text(json.dumps(
                     {"type": "error", "message": "Invalid JSON"}
+                ))
+                continue
+
+            # Reject bids from spectators
+            if msg.get("type") == "bid" and is_spectator:
+                await websocket.send_text(json.dumps(
+                    {"type": "error", "message": "Spectators cannot bid"}
                 ))
                 continue
 
@@ -180,7 +202,6 @@ async def websocket_endpoint(
                 db.add(bid)
                 auction.current_bid = amount
                 auction.current_team_id = team_id
-                # Reset timer on new bid (only in auto mode)
                 timer_val = auction.timer_seconds if auction.timer_mode == "auto" else 0
                 db.commit()
 

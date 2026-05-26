@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
-  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search
+  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search, Share2, Eye
 } from 'lucide-react'
 import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, WS_BASE } from '../api'
+import { useAuth } from '../contexts/AuthContext'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
 import { EmptyState, Skeleton, SkeletonLine, SkeletonCircle } from '../components/ui'
 import { notify, areNotificationsEnabled, setNotificationsEnabled, requestNotificationPermission, isNotificationSupported } from '../notifications'
@@ -64,6 +65,8 @@ export default function AuctionLive() {
   const { auctionId } = useParams<{ auctionId: string }>()
   const navigate = useNavigate()
   const wsRef = useRef<WebSocket | null>(null)
+  const { canEdit } = useAuth()
+  const [shareCopied, setShareCopied] = useState(false)
 
   const [auction, setAuction] = useState<any>(null)
   const [teams, setTeams] = useState<Team[]>([])
@@ -382,7 +385,31 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
           <span className="text-sm text-gray-500 shrink-0 hidden sm:inline">{soldCount}/{allPlayers.length} sold</span>
         </div>
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
-          {/* Open Overlay button */}
+          {/* Spectator share */}
+        <button
+          onClick={() => {
+            const url = `${window.location.origin}/watch/${auctionId}`
+            navigator.clipboard.writeText(url)
+            setShareCopied(true)
+            toast.success('Spectator link copied!')
+            setTimeout(() => setShareCopied(false), 2000)
+          }}
+          className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
+          title="Copy spectator link"
+          aria-label="Copy spectator link"
+        >
+          {shareCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+          <span className="hidden sm:inline">{shareCopied ? 'Copied' : 'Share'}</span>
+        </button>
+        <button
+          onClick={() => window.open(`/watch/${auctionId}`, '_blank')}
+          className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
+          title="Open spectator view"
+          aria-label="Open spectator view"
+        >
+          <Eye className="w-4 h-4" /> Spectate
+        </button>
+        {/* Open Overlay button */}
           <button
             onClick={() => window.open(`/overlay/${auctionId}`, '_blank', 'width=1920,height=1080')}
             className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"

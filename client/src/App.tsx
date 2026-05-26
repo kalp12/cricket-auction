@@ -22,6 +22,7 @@ import PlayerRegister from './pages/PlayerRegister'
 import UserManagement from './pages/UserManagement'
 import RegisterInvite from './pages/RegisterInvite'
 import AuctionReplay from './pages/AuctionReplay'
+import SpectatorWatch from './pages/SpectatorWatch'
 import CommandPalette from './components/CommandPalette'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/register-invite" element={<RegisterInvite />} />
           {/* Broadcast overlay — no auth, no layout, chromeless */}
           <Route path="/overlay/:auctionId" element={<AuctionOverlay />} />
+        <Route path="/watch/:auctionId" element={<SpectatorWatch />} />
           {/* Public player registration — no auth */}
           <Route path="/register/:auctionId" element={<PlayerRegister />} />
           <Route
