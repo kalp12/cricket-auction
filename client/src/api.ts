@@ -272,4 +272,11 @@ export const setRegistrationDeadline = async (auctionId: number, deadline: strin
 export const updateRegistrationFormConfig = async (auctionId: number, config: any) =>
   (await axios.put(`${BASE}/api/registration/${auctionId}/form-config`, config, { headers: headers() })).data
 
+// ── Replay ────────────────────────────────────────────
+export const getAuctionReplay = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/auctions/${auctionId}/replay`, { headers: headers() })).data
+
+export const getAuctionEvents = async (auctionId: number, afterEventId: number = 0) =>
+  (await axios.get(`${BASE}/api/auctions/${auctionId}/events`, { params: { after_event_id: afterEventId }, headers: headers() })).data
+
 export { BASE, WS_BASE }

@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from db.database import Base, get_db
-from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate, User
+from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate, User, AuctionEvent
 from auth.auth import get_current_user, create_access_token, verify_token
 
 # ── In-memory SQLite setup ───────────────────────────────
@@ -136,7 +136,7 @@ def start_auction_with_player(player_id, auction_id=None, timer=60):
 def clean_db():
     """Clean all tables before each test for isolation."""
     db = TestSessionLocal()
-    for table in [StatUpdate, Registration, Bid, TeamPlayer, BidIncrementSlab, Player, Team, Auction]:
+    for table in [AuctionEvent, StatUpdate, Registration, Bid, TeamPlayer, BidIncrementSlab, Player, Team, Auction]:
         db.query(table).delete()
     db.commit()
     db.close()

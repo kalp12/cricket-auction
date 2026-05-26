@@ -190,3 +190,16 @@ class StatUpdate(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     player = relationship("Player", backref="stat_updates")
+
+
+class AuctionEvent(Base):
+    __tablename__ = "auction_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
+    event_type = Column(String, nullable=False)  # bid/sold/unsold/start/pause/resume/next_player/rtm_prompt/rtm_accept/rtm_decline
+    data = Column(String, nullable=False)  # JSON string: {team_id, team_name, amount, player_id, player_name, ...}
+    snapshot = Column(String, nullable=True)  # JSON string: full auction state at this moment
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    auction = relationship("Auction", backref="events")

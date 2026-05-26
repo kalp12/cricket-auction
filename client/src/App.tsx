@@ -21,6 +21,7 @@ import TeamImport from './pages/TeamImport'
 import PlayerRegister from './pages/PlayerRegister'
 import UserManagement from './pages/UserManagement'
 import RegisterInvite from './pages/RegisterInvite'
+import AuctionReplay from './pages/AuctionReplay'
 import CommandPalette from './components/CommandPalette'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -85,6 +86,7 @@ export default function App() {
             <Route path="auctions/:auctionId/settings" element={<Settings />} />
             <Route path="auctions/:auctionId/history" element={<AuctionHistory />} />
             <Route path="auctions/:auctionId/stats" element={<AuctionStats />} />
+            <Route path="auctions/:auctionId/replay" element={<AuctionReplay />} />
           </Route>
           <Route path="/auction" element={isAuth() ? <Auction /> : <Navigate to="/login" />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />

@@ -8,6 +8,7 @@ from auth.auth import get_current_user
 from models.models import Auction, Bid, Player, Team, TeamPlayer
 from schemas.auction import BidCreate, AuctionResponse, AuctionStateResponse
 from routes.bids import manager as ws_manager
+from event_recorder import record_event
 
 router = APIRouter(tags=["auction"])
 
@@ -36,6 +37,11 @@ async def start_auction(
 
     db.commit()
     db.refresh(auction)
+
+    record_event(auction.id, "start", {
+        "player_id": player.id, "player_name": player.name,
+        "base_price": player.base_price, "timer_seconds": timer_seconds,
+    }, db)
 
     return AuctionResponse(
         id=auction.id,
@@ -200,6 +206,12 @@ async def mark_sold(
         "play_sound": "gavel",
     })
 
+    record_event(auction.id, "sold", {
+        "player_id": player.id, "player_name": player.name,
+        "team_id": winning_team.id, "team_name": winning_team.name,
+        "price": sold_price,
+    }, db)
+
     return {
         "message": "Player sold",
         "player": player.name,
@@ -270,6 +282,10 @@ async def mark_unsold(
         "play_sound": "unsold",
     })
 
+    record_event(auction.id, "unsold", {
+        "player_id": player.id, "player_name": player.name,
+    }, db)
+
     return {
         "message": "Player marked as unsold",
         "status": auction.status,
@@ -306,6 +322,8 @@ async def pause_auction(
         "current_team_id": auction.current_team_id,
         "timer_seconds": auction.timer_seconds,
     })
+
+    record_event(auction.id, "pause", {"status": "paused"}, db)
 
     return AuctionResponse(
         id=auction.id,
@@ -347,6 +365,8 @@ async def resume_auction(
         "current_team_id": auction.current_team_id,
         "timer_seconds": auction.timer_seconds,
     })
+
+    record_event(auction.id, "resume", {"status": "live"}, db)
 
     return AuctionResponse(
         id=auction.id,

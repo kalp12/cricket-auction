@@ -8,6 +8,7 @@ from models.models import Auction, Player, Team
 from schemas.auctions import AuctionSchema, AuctionCreate, AuctionUpdate
 from auth.auth import get_current_user
 from routes.bids import manager as ws_manager
+from event_recorder import record_event
 
 router = APIRouter()
 
@@ -146,6 +147,7 @@ async def next_player(auction_id: int, random_select: bool = Query(True), player
                 "current_player": None,
                 "current_team": None,
             })
+            record_event(auction_id, "end", {"status": "ended", "reason": "no_more_players"}, db)
             return {"message": "No more players. Auction ended."}
 
         # Pick random or sequential
@@ -191,10 +193,15 @@ async def next_player(auction_id: int, random_select: bool = Query(True), player
         "current_team": team_data,
     })
 
+    record_event(auction_id, "next_player", {
+        "player_id": next_p.id, "player_name": next_p.name,
+        "base_price": next_p.base_price,
+    }, db)
+
     return {
         "message": "Next player set successfully",
         "player_id": next_p.id,
         "player_name": next_p.name,
         "base_price": next_p.base_price,
     }
-
+

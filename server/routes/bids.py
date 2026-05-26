@@ -1,8 +1,9 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
-from models.models import Bid, Auction, Team
+from models.models import Bid, Auction, Team, Player
 from routes.slabs import get_next_bid_amount
+from event_recorder import record_event
 import json
 from typing import Dict, List
 
@@ -191,6 +192,14 @@ async def websocket_endpoint(
                     "amount": amount,
                     "timer_seconds": timer_val,
                 })
+
+                # Record bid event for replay
+                player = db.query(Player).filter(Player.id == auction.current_player_id).first()
+                record_event(auction_id, "bid", {
+                    "team_id": team_id, "team_name": team.name,
+                    "player_id": auction.current_player_id, "player_name": player.name if player else None,
+                    "amount": amount,
+                }, db)
 
             elif msg.get("type") == "ping":
                 await websocket.send_text(json.dumps({"type": "pong"}))
