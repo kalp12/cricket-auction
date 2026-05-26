@@ -18,6 +18,24 @@ export const login = async (u: string, p: string) => {
 export const getMe = async () =>
   (await axios.get(`${BASE}/api/auth/me`, { headers: headers() })).data
 
+// ── Users ─────────────────────────────────────────────
+export const listUsersApi = async () =>
+  (await axios.get(`${BASE}/api/users`, { headers: headers() })).data
+
+export const inviteUserApi = async (email: string, role: string) =>
+  (await axios.post(`${BASE}/api/users/invite`, { email, role }, { headers: headers() })).data
+
+export const registerWithInvite = async (token: string, username: string, password: string) => {
+  const res = await axios.post(`${BASE}/api/users/register`, { invite_token: token, username, password })
+  return res.data
+}
+
+export const changeRoleApi = async (userId: number, role: string) =>
+  (await axios.patch(`${BASE}/api/users/${userId}/role`, { role }, { headers: headers() })).data
+
+export const deleteUserApi = async (userId: number) =>
+  (await axios.delete(`${BASE}/api/users/${userId}`, { headers: headers() })).data
+
 // ── Auctions (CRUD) ───────────────────────────────────
 export const createAuction = async (data: {
   name: string

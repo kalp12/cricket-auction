@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from db.database import Base, get_db
-from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate
+from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate, User
 from auth.auth import get_current_user, create_access_token, verify_token
 
 # ── In-memory SQLite setup ───────────────────────────────
@@ -40,7 +40,7 @@ def override_get_db():
         db.close()
 
 
-fake_user = type("User", (), {"username": "admin", "role": "admin"})()
+fake_user = type("User", (), {"id": 1, "username": "admin", "role": "owner", "email": None})()
 
 from main import app  # noqa: E402
 
@@ -54,7 +54,7 @@ AUCTION_ID = 1
 
 
 def auth_headers():
-    token = create_access_token(data={"sub": "admin"})
+    token = create_access_token(data={"sub": "admin", "role": "owner"})
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -166,7 +166,7 @@ class TestAuth:
         assert r.status_code == 200
         data = r.json()
         assert data["username"] == "admin"
-        assert data["role"] == "admin"
+        assert data["role"] == "owner"
 
     def test_get_me_without_token(self):
         # With dependency override, test verify_token directly instead

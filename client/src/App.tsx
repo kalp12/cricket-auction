@@ -19,7 +19,10 @@ import PlayerImport from './pages/PlayerImport'
 import StatsImport from './pages/StatsImport'
 import TeamImport from './pages/TeamImport'
 import PlayerRegister from './pages/PlayerRegister'
+import UserManagement from './pages/UserManagement'
+import RegisterInvite from './pages/RegisterInvite'
 import CommandPalette from './components/CommandPalette'
+import { AuthProvider } from './contexts/AuthContext'
 
 const isAuth = () => !!localStorage.getItem('token')
 
@@ -30,59 +33,63 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: 'var(--bg-surface-2)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: '12px',
-            fontSize: '14px',
-          },
-          success: {
-            iconTheme: { primary: '#22c55e', secondary: 'var(--bg-surface-2)' },
-          },
-          error: {
-            iconTheme: { primary: '#ef4444', secondary: 'var(--bg-surface-2)' },
-          },
-        }}
-      />
-      <CommandPalette />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        {/* Broadcast overlay — no auth, no layout, chromeless */}
-        <Route path="/overlay/:auctionId" element={<AuctionOverlay />} />
-      {/* Public player registration — no auth */}
-      <Route path="/register/:auctionId" element={<PlayerRegister />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="auctions/new" element={<NewAuction />} />
-          <Route path="auctions" element={<MyAuctions />} />
-          <Route path="auctions/:id" element={<AuctionDetail />} />
-          <Route path="auctions/:auctionId/teams" element={<Teams />} />
-          <Route path="auctions/:auctionId/players" element={<Players />} />
-          <Route path="auctions/:auctionId/players/import" element={<PlayerImport />} />
-          <Route path="auctions/:auctionId/teams/import" element={<TeamImport />} />
-          <Route path="auctions/:auctionId/players/stats-import" element={<StatsImport />} />
-          <Route path="auction-panel" element={<AuctionPanel />} />
-          <Route path="auctions/:auctionId/live" element={<AuctionLive />} />
-          <Route path="auctions/:auctionId/settings" element={<Settings />} />
-          <Route path="auctions/:auctionId/history" element={<AuctionHistory />} />
-          <Route path="auctions/:auctionId/stats" element={<AuctionStats />} />
-        </Route>
-        <Route path="/auction" element={isAuth() ? <Auction /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: 'var(--bg-surface-2)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '12px',
+              fontSize: '14px',
+            },
+            success: {
+              iconTheme: { primary: '#22c55e', secondary: 'var(--bg-surface-2)' },
+            },
+            error: {
+              iconTheme: { primary: '#ef4444', secondary: 'var(--bg-surface-2)' },
+            },
+          }}
+        />
+        <CommandPalette />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register-invite" element={<RegisterInvite />} />
+          {/* Broadcast overlay — no auth, no layout, chromeless */}
+          <Route path="/overlay/:auctionId" element={<AuctionOverlay />} />
+          {/* Public player registration — no auth */}
+          <Route path="/register/:auctionId" element={<PlayerRegister />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="auctions/new" element={<NewAuction />} />
+            <Route path="auctions" element={<MyAuctions />} />
+            <Route path="auctions/:id" element={<AuctionDetail />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="auctions/:auctionId/teams" element={<Teams />} />
+            <Route path="auctions/:auctionId/players" element={<Players />} />
+            <Route path="auctions/:auctionId/players/import" element={<PlayerImport />} />
+            <Route path="auctions/:auctionId/teams/import" element={<TeamImport />} />
+            <Route path="auctions/:auctionId/players/stats-import" element={<StatsImport />} />
+            <Route path="auction-panel" element={<AuctionPanel />} />
+            <Route path="auctions/:auctionId/live" element={<AuctionLive />} />
+            <Route path="auctions/:auctionId/settings" element={<Settings />} />
+            <Route path="auctions/:auctionId/history" element={<AuctionHistory />} />
+            <Route path="auctions/:auctionId/stats" element={<AuctionStats />} />
+          </Route>
+          <Route path="/auction" element={isAuth() ? <Auction /> : <Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

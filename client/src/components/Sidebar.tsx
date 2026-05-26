@@ -9,8 +9,10 @@ import {
   Trophy,
   Sun,
   Moon,
-  X
+  X,
+  Users
 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { useSidebar } from './DashboardLayout'
 
@@ -25,9 +27,11 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const { isDark, toggleTheme } = useTheme()
   const { setOpen } = useSidebar()
+  const { canEdit, isOwner } = useAuth()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('role')
     navigate('/login')
   }
 
@@ -89,6 +93,33 @@ export default function Sidebar() {
             )}
           </NavLink>
         ))}
+        {canEdit && (
+          <NavLink
+            to="/users"
+            onClick={handleNav}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                isActive
+                  ? 'bg-white/10 text-white shadow-lg shadow-white/5 border border-white/10'
+                  : 'text-gray-500 hover:bg-white/5 hover:text-gray-300 border border-transparent'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Users className={`w-5 h-5 transition-colors ${isActive ? 'text-accent-gold' : 'text-gray-600 group-hover:text-gray-400'}`} />
+                Users
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-indicator"
+                    className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-gold"
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  />
+                )}
+              </>
+            )}
+          </NavLink>
+        )}
       </nav>
 
       {/* Theme Toggle + Logout */}

@@ -17,6 +17,7 @@ export default function Login() {
     try {
       const data = await login(username, password)
       localStorage.setItem('token', data.access_token)
+      localStorage.setItem('role', data.role || 'viewer')
       navigate('/dashboard')
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Login failed')
