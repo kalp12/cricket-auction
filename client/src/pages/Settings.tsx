@@ -371,7 +371,25 @@ setAuction(updated); toast.success('Image removed')
         </div>
       </div>
 
-      {/* Auction Rules */}
+      {/* RTM Settings */}
+<div className="glass-strong rounded-2xl p-6 mb-6">
+  <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">RIGHT TO MATCH (RTM)</h2>
+  <p className="text-sm text-white/30 mb-6">IPL-style RTM allows a player's previous team to match the final bid and retain the player at the same price. Set <code className="text-white/50">previous_team_id</code> on players to enable RTM for them.</p>
+  <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface-2/50 border border-white/5">
+    <div className="flex items-center gap-3">
+      {auction.rtm_enabled ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-gray-500" />}
+      <span className="text-sm text-gray-300">RTM is <span className={`font-semibold ${auction.rtm_enabled ? 'text-emerald-400' : 'text-gray-500'}`}>{auction.rtm_enabled ? 'ENABLED' : 'DISABLED'}</span></span>
+    </div>
+    <button
+      onClick={() => handleAuctionUpdate('rtm_enabled', auction.rtm_enabled ? 0 : 1)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${auction.rtm_enabled ? 'bg-accent-gold' : 'bg-surface-4'}`}
+    >
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${auction.rtm_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
+  </div>
+</div>
+
+{/* Auction Rules */}
       <div className="glass-strong rounded-2xl p-6 mb-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-5">AUCTION RULES</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

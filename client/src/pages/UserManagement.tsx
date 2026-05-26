@@ -54,7 +54,7 @@ export default function UserManagement() {
   }
 
   const handleDelete = async (userId: number) => {
-    if (!confirm('Delete this user?')) return
+    if (!window.confirm('Delete this user?')) return
     try {
       await deleteUserApi(userId)
       toast.success('User deleted')

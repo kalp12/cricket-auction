@@ -29,6 +29,9 @@ class Player(Base):
     image_url = Column(String, nullable=True)
     status = Column(String, default="unsold")  # unsold/sold/pending
 
+    previous_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    rtm_used = Column(Integer, default=0)  # 0=not used, 1=RTM accepted, 2=RTM declined
+
     # Cricket stats
     matches = Column(Integer, default=0)
     runs = Column(Integer, default=0)
@@ -104,6 +107,9 @@ class Auction(Base):
     sound_unsold = Column(String, nullable=True)
     sound_timer = Column(String, nullable=True)
     sound_celebration = Column(String, nullable=True)
+
+    # Right to Match
+    rtm_enabled = Column(Integer, default=0) # 0=disabled, 1=enabled
 
     # Player registration
     registration_open = Column(Integer, default=0)  # 0=closed, 1=open

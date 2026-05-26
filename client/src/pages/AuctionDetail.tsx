@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, Users, User, Pencil, Trash2,
-  Link, Copy, Timer, TrendingUp, Palette, History, BarChart3
+  Link, Copy, Timer, TrendingUp, Palette, History, BarChart3, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmModal from '../components/ConfirmModal'
@@ -135,6 +135,7 @@ export default function AuctionDetail() {
               <button onClick={() => navigate(`/auctions/${id}/players`)} title="Players" aria-label="Players" className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><User className="w-5 h-5 text-gray-500" /></button>
               <button onClick={() => navigate(`/auctions/${id}/history`)} title="History" aria-label="History" className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><History className="w-5 h-5 text-gray-500" /></button>
               <button onClick={() => navigate(`/auctions/${id}/stats`)} title="Stats" aria-label="Stats" className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><BarChart3 className="w-5 h-5 text-gray-500" /></button>
+          <button onClick={() => navigate(`/auctions/${id}/report`)} title="Report" aria-label="Report" className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><FileText className="w-5 h-5 text-gray-500" /></button>
                             <button onClick={() => setEditMode(!editMode)} title="Edit" aria-label="Edit auction" className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><Pencil className="w-5 h-5 text-gray-500" /></button>
               <button onClick={handleDelete} title="Delete" aria-label="Delete auction" className="p-2.5 hover:bg-rose-500/10 rounded-xl transition-colors"><Trash2 className="w-5 h-5 text-rose-400" /></button>
               <button onClick={handleDeactivate} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? 'bg-accent-gold' : 'bg-surface-4'}`}>

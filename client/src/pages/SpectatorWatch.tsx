@@ -239,7 +239,7 @@ export default function SpectatorWatch() {
             animate={{ scale: 1, opacity: 1 }}
             className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
               status === 'live' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-              status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+              status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : status === 'rtm_pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse' :
               'bg-gray-500/20 text-gray-400 border border-gray-500/30'
             }`}
           >

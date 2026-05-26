@@ -22,7 +22,8 @@ const StatusIcon: Record<string, any> = {
 
 const emptyForm = {
   name: '', role: 'batsman', country: 'India', base_price: 1000000, image_url: '',
-  matches: 0, runs: 0, wickets: 0, batting_avg: 0, batting_sr: 0, bowling_avg: 0, bowling_econ: 0
+  matches: 0, runs: 0, wickets: 0, batting_avg: 0, batting_sr: 0, bowling_avg: 0, bowling_econ: 0,
+  previous_team_id: '' as string | number
 }
 
 export default function Players() {
@@ -87,7 +88,8 @@ export default function Players() {
       base_price: player.base_price, image_url: player.image_url || '',
       matches: player.matches || 0, runs: player.runs || 0, wickets: player.wickets || 0,
       batting_avg: player.batting_avg || 0, batting_sr: player.batting_sr || 0,
-      bowling_avg: player.bowling_avg || 0, bowling_econ: player.bowling_econ || 0
+      bowling_avg: player.bowling_avg || 0, bowling_econ: player.bowling_econ || 0,
+    previous_team_id: player.previous_team_id || ""
     })
     setShowForm(true)
   }
@@ -364,7 +366,15 @@ export default function Players() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 pt-2">
+                    <div>
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span className="w-8 h-px bg-white/10" /> RTM (Right to Match) <span className="flex-1 h-px bg-white/5" />
+        </p>
+        <Input label="Previous Team ID" labelClassName="text-[10px] text-gray-500" type="number" placeholder="Leave blank if none" value={form.previous_team_id} onChange={e => setForm({ ...form, previous_team_id: e.target.value ? Number(e.target.value) : '' })} className="!px-3 !py-2 !rounded-lg" />
+        <p className="text-[10px] text-gray-600 mt-1">Set to the team ID that previously owned this player (for RTM eligibility).</p>
+      </div>
+
+      <div className="flex items-center gap-3 pt-2">
                       <Button variant="gold" type="submit" disabled={saving}
                         className="bg-accent-gold/20 hover:bg-accent-gold/30 !text-accent-gold border border-accent-gold/20 !shadow-none">
                         {saving ? 'Saving...' : editId ? 'Update Player' : 'Add Player'}

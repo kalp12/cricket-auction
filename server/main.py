@@ -21,6 +21,7 @@ from routes.import_teams import router as import_teams_router
 from routes.users import router as users_router
 from routes.replay import router as replay_router
 from routes.public import router as public_router
+from routes.report import router as report_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -70,6 +71,9 @@ def run_migrations():
         ("stat_updates", "id", "CREATE TABLE IF NOT EXISTS stat_updates (id SERIAL PRIMARY KEY, player_id INTEGER REFERENCES players(id), source VARCHAR NOT NULL, old_matches INTEGER, new_matches INTEGER, old_runs INTEGER, new_runs INTEGER, old_wickets INTEGER, new_wickets INTEGER, old_batting_avg FLOAT, new_batting_avg FLOAT, old_batting_sr FLOAT, new_batting_sr FLOAT, old_bowling_avg FLOAT, new_bowling_avg FLOAT, old_bowling_econ FLOAT, new_bowling_econ FLOAT, created_at TIMESTAMP DEFAULT NOW())"),
         ("users", "id", "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR UNIQUE NOT NULL, email VARCHAR UNIQUE, password_hash VARCHAR NOT NULL, role VARCHAR DEFAULT 'viewer', invite_token VARCHAR, created_at TIMESTAMP DEFAULT NOW())"),
         ("auction_events", "id", "CREATE TABLE IF NOT EXISTS auction_events (id SERIAL PRIMARY KEY, auction_id INTEGER REFERENCES auctions(id), event_type VARCHAR NOT NULL, data VARCHAR NOT NULL, snapshot VARCHAR, timestamp TIMESTAMP DEFAULT NOW())"),
+        ("auctions", "rtm_enabled", "ALTER TABLE auctions ADD COLUMN rtm_enabled INTEGER DEFAULT 0"),
+        ("players", "previous_team_id", "ALTER TABLE players ADD COLUMN previous_team_id INTEGER REFERENCES teams(id)"),
+        ("players", "rtm_used", "ALTER TABLE players ADD COLUMN rtm_used INTEGER DEFAULT 0"),
     ]
 
     db = SessionLocal()
@@ -133,6 +137,7 @@ app.include_router(stats_import_router, prefix="/api/stats-import", tags=["stats
 app.include_router(import_teams_router, prefix="/api/import", tags=["import-teams"])
 app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(replay_router, prefix="/api/auctions", tags=["replay"])
+app.include_router(report_router, prefix="/api", tags=["report"])
 app.include_router(public_router, prefix="/api", tags=["public"])
 app.include_router(bids_router, tags=["websocket"])
 

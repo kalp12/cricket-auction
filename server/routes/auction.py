@@ -9,6 +9,7 @@ from models.models import Auction, Bid, Player, Team, TeamPlayer
 from schemas.auction import BidCreate, AuctionResponse, AuctionStateResponse
 from routes.bids import manager as ws_manager
 from event_recorder import record_event
+import json
 
 router = APIRouter(tags=["auction"])
 
@@ -151,6 +152,50 @@ async def mark_sold(
     winning_team = db.query(Team).filter(Team.id == auction.current_team_id).first()
     sold_price = auction.current_bid
 
+    # RTM check: if enabled and player has a previous team that isn't the winning team
+    if auction.rtm_enabled and player.previous_team_id and player.previous_team_id != winning_team.id:
+        prev_team = db.query(Team).filter(Team.id == player.previous_team_id).first()
+        if prev_team and prev_team.remaining_budget >= sold_price and prev_team.auction_id == auction.id:
+            # Pause auction and broadcast RTM prompt
+            auction.status = "rtm_pending"
+            db.commit()
+
+            record_event(auction.id, "rtm_prompt", {
+                "player_id": player.id, "player_name": player.name,
+                "previous_team_id": prev_team.id, "previous_team_name": prev_team.name,
+                "winning_team_id": winning_team.id, "winning_team_name": winning_team.name,
+                "price": sold_price,
+            }, db)
+
+            await ws_manager.broadcast(auction.id, {
+                "type": "rtm_prompt",
+                "player_name": player.name,
+                "player_id": player.id,
+                "winning_team_name": winning_team.name,
+                "winning_team_short": winning_team.short_name,
+                "winning_team_id": winning_team.id,
+                "rtm_team_name": prev_team.name,
+                "rtm_team_short": prev_team.short_name,
+                "rtm_team_id": prev_team.id,
+                "price": sold_price,
+                "status": "rtm_pending",
+            })
+
+            return {
+                "message": "RTM prompt sent",
+                "rtm_pending": True,
+                "player": player.name,
+                "winning_team": winning_team.name,
+                "rtm_team": prev_team.name,
+                "price": sold_price,
+                "status": "rtm_pending",
+            }
+
+    # No RTM — complete the sale directly
+    return await _complete_sale(auction, player, winning_team, sold_price, db)
+
+
+async def _complete_sale(auction, player, winning_team, sold_price, db):
     try:
         player.status = "sold"
 
@@ -173,6 +218,7 @@ async def mark_sold(
             auction.current_player_id = next_p.id
             auction.current_bid = next_p.base_price
             auction.current_team_id = None
+            auction.status = "live"
         else:
             auction.status = "ended"
             auction.current_player_id = None
@@ -222,6 +268,104 @@ async def mark_sold(
         "current_player_name": next_player_name,
         "current_bid": auction.current_bid,
     }
+
+
+@router.post("/rtm-accept")
+async def rtm_accept(
+    auction_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "rtm_pending").first()
+
+    if not auction or auction.status != "rtm_pending":
+        raise HTTPException(status_code=400, detail="No RTM pending")
+
+    player = db.query(Player).filter(Player.id == auction.current_player_id).first()
+    if not player or not player.previous_team_id:
+        raise HTTPException(status_code=400, detail="Player has no previous team")
+
+    rtm_team = db.query(Team).filter(Team.id == player.previous_team_id).first()
+    if not rtm_team:
+        raise HTTPException(status_code=404, detail="Previous team not found")
+
+    sold_price = auction.current_bid
+    if rtm_team.remaining_budget < sold_price:
+        raise HTTPException(status_code=400, detail="Previous team has insufficient budget for RTM")
+
+    player.rtm_used = 1
+    result = await _complete_sale(auction, player, rtm_team, sold_price, db)
+
+    record_event(auction.id, "rtm_accept", {
+        "player_id": player.id, "player_name": player.name,
+        "team_id": rtm_team.id, "team_name": rtm_team.name,
+        "price": sold_price,
+    }, db)
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "rtm_result",
+        "rtm_accepted": True,
+        "player_name": player.name,
+        "player_id": player.id,
+        "team_name": rtm_team.name,
+        "team_short": rtm_team.short_name,
+        "team_id": rtm_team.id,
+        "price": sold_price,
+        "status": result.get("status", "live"),
+    })
+
+    return result
+
+
+@router.post("/rtm-decline")
+async def rtm_decline(
+    auction_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if auction_id:
+        auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    else:
+        auction = db.query(Auction).filter(Auction.status == "rtm_pending").first()
+
+    if not auction or auction.status != "rtm_pending":
+        raise HTTPException(status_code=400, detail="No RTM pending")
+
+    player = db.query(Player).filter(Player.id == auction.current_player_id).first()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    winning_team = db.query(Team).filter(Team.id == auction.current_team_id).first()
+    if not winning_team:
+        raise HTTPException(status_code=400, detail="No winning bid found")
+
+    sold_price = auction.current_bid
+    player.rtm_used = 2
+    result = await _complete_sale(auction, player, winning_team, sold_price, db)
+
+    record_event(auction.id, "rtm_decline", {
+        "player_id": player.id, "player_name": player.name,
+        "winning_team_id": winning_team.id, "winning_team_name": winning_team.name,
+        "rtm_team_id": player.previous_team_id,
+        "price": sold_price,
+    }, db)
+
+    await ws_manager.broadcast(auction.id, {
+        "type": "rtm_result",
+        "rtm_accepted": False,
+        "player_name": player.name,
+        "player_id": player.id,
+        "team_name": winning_team.name,
+        "team_short": winning_team.short_name,
+        "team_id": winning_team.id,
+        "price": sold_price,
+        "status": result.get("status", "live"),
+    })
+
+    return result
 
 
 @router.post("/unsold")

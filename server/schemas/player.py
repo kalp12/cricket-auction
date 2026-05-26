@@ -16,6 +16,7 @@ class PlayerCreate(BaseModel):
     batting_sr: Optional[float] = 0.0
     bowling_avg: Optional[float] = 0.0
     bowling_econ: Optional[float] = 0.0
+    previous_team_id: Optional[int] = None
 
 
 class PlayerUpdate(BaseModel):
@@ -32,6 +33,7 @@ class PlayerUpdate(BaseModel):
     batting_sr: Optional[float] = None
     bowling_avg: Optional[float] = None
     bowling_econ: Optional[float] = None
+    previous_team_id: Optional[int] = None
 
 
 class PlayerResponse(BaseModel):
@@ -50,6 +52,8 @@ class PlayerResponse(BaseModel):
     batting_sr: float = 0.0
     bowling_avg: float = 0.0
     bowling_econ: float = 0.0
+    previous_team_id: Optional[int] = None
+    rtm_used: int = 0
 
     class Config:
         from_attributes = True

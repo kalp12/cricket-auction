@@ -82,6 +82,12 @@ export const soldPlayer = async (auctionId?: number) =>
 export const unsoldPlayer = async (auctionId?: number) =>
   (await axios.post(`${BASE}/api/auction/unsold`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
+export const rtmAccept = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/rtm-accept`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const rtmDecline = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/rtm-decline`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
+
 export const pauseAuction = async (auctionId?: number) =>
   (await axios.post(`${BASE}/api/auction/pause`, {}, { params: { auction_id: auctionId }, headers: headers() })).data
 
@@ -278,6 +284,10 @@ export const getAuctionReplay = async (auctionId: number) =>
 
 export const getAuctionEvents = async (auctionId: number, afterEventId: number = 0) =>
   (await axios.get(`${BASE}/api/auctions/${auctionId}/events`, { params: { after_event_id: afterEventId }, headers: headers() })).data
+
+// ── Post-Auction Report ───────────────────────────────
+export const getAuctionReport = async (auctionId: number) =>
+  (await axios.get(`${BASE}/api/auction/${auctionId}/report`, { headers: headers() })).data
 
 // ── Public (Spectator) ────────────────────────────────
 export const getPublicAuction = async (auctionId: number) =>
