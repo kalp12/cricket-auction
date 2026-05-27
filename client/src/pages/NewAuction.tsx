@@ -15,12 +15,16 @@ export default function NewAuction() {
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState({
     name: '',
+    auction_type: 'english',
     timer_seconds: 60,
     timer_mode: 'auto',
     base_bid: 1000000,
     budget_per_team: 100000000,
     min_players: 5,
     max_players: 18,
+    dutch_start_price: 0,
+    dutch_decrement: 100000,
+    dutch_interval: 10,
   })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +135,53 @@ export default function NewAuction() {
             </div>
           </div>
 
-          {/* Budget */}
+          {/* Auction Type */}
+      <div className="flex items-start gap-6">
+        <label className="w-40 text-sm font-medium text-gray-400 pt-2">Auction Type</label>
+        <div className="flex-1">
+          <select value={form.auction_type} onChange={e => set('auction_type', e.target.value)}
+            className={inputCls}>
+            <option value="english">English — Traditional ascending bid</option>
+            <option value="sealed">Sealed Bid — Hidden bids, highest wins</option>
+            <option value="dutch">Dutch — Price descends, first to accept wins</option>
+            <option value="proxy">Proxy — Teams set max bids, system auto-bids</option>
+          </select>
+          {form.auction_type === 'sealed' && (
+            <p className="text-xs text-gray-600 mt-1">Teams submit hidden bids. Admin reveals all at once. Highest bid wins.</p>
+          )}
+          {form.auction_type === 'dutch' && (
+            <p className="text-xs text-gray-600 mt-1">Price starts high and drops. First team to accept wins at that price.</p>
+          )}
+          {form.auction_type === 'proxy' && (
+            <p className="text-xs text-gray-600 mt-1">Teams set a max bid. The system auto-bids on their behalf up to their max.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Dutch Auction Settings */}
+      {form.auction_type === 'dutch' && (
+        <div className="flex items-start gap-6">
+          <label className="w-40 text-sm font-medium text-gray-400 pt-2">Dutch Settings</label>
+          <div className="flex-1 space-y-3">
+            <div>
+              <label className="text-xs text-gray-600 mb-1 block">Start Price (0 = auto 5x base)</label>
+              <input type="number" value={form.dutch_start_price} onChange={e => set('dutch_start_price', Number(e.target.value))} className={inputCls} />
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="text-xs text-gray-600 mb-1 block">Price Decrement</label>
+                <input type="number" value={form.dutch_decrement} onChange={e => set('dutch_decrement', Number(e.target.value))} className={inputCls} />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-gray-600 mb-1 block">Drop Interval (sec)</label>
+                <input type="number" value={form.dutch_interval} onChange={e => set('dutch_interval', Number(e.target.value))} className={inputCls} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Budget */}
           <div className="flex items-start gap-6">
             <label className="w-40 text-sm font-medium text-gray-400 pt-2">Budget per Team</label>
             <div className="flex-1">

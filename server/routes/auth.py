@@ -13,9 +13,10 @@ router = APIRouter()
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Authenticate user and return JWT access token."""
+    print("Here")
     # First try DB-backed user lookup
     user = db.query(User).filter(User.username == form_data.username).first()
-
+    print(user)
     if user and pwd_context.verify(form_data.password, user.password_hash):
         access_token = create_access_token(data={"sub": user.username, "role": user.role})
         return TokenResponse(access_token=access_token, token_type="bearer", role=user.role)

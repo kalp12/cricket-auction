@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { QRCodeSVG } from 'qrcode.react'
-import { Copy, Check, QrCode, X } from 'lucide-react'
+import { Copy, Check, QrCode, X, Gavel } from 'lucide-react'
 import { getPublicAuction, WS_BASE, assetUrl } from '../api'
 import { useSoundBoard } from '../hooks/useSoundBoard'
 import toast from 'react-hot-toast'
@@ -51,7 +51,7 @@ function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: num
         <circle cx="59" cy="59" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
         <circle cx="59" cy="59" r={radius} fill="none" stroke={color} strokeWidth="5" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
       </svg>
-      <motion.div key={seconds} initial={{ scale: 1.3, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.15 }} className={`text-3xl font-mono font-bold ${seconds <= 5 ? 'text-red-400' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
+      <motion.div key={seconds} initial={{ scale: 1.05, opacity: 0.8 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.15 }} className={`text-3xl font-mono font-bold ${seconds <= 5 ? 'text-red-400' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
         {seconds}
       </motion.div>
     </div>
@@ -197,7 +197,8 @@ export default function SpectatorWatch() {
     }
 
     return () => { ws.close(); stopCountdown() }
-  }, [auctionId, auction?.timer_seconds, setTimer, startCountdown, stopCountdown, soundBoard])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auctionId, auction?.timer_seconds, setTimer, startCountdown, stopCountdown])
 
   // Timer auto-start
   useEffect(() => {
@@ -326,6 +327,7 @@ export default function SpectatorWatch() {
               transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               className="flex flex-col items-center"
             >
+                  {soldOverlay === 'sold' && <Gavel className="w-16 h-16 text-amber-400 mb-4 drop-shadow-[0_0_30px_rgba(251,191,36,0.6)]" />}
               <span className={`font-display text-8xl tracking-wider ${
                 soldOverlay === 'sold'
                   ? 'text-green-400 drop-shadow-[0_0_60px_rgba(34,197,94,0.5)]'
@@ -370,7 +372,7 @@ export default function SpectatorWatch() {
                 <div className="text-sm text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
                 <motion.div
                   key={currentBid}
-                  initial={{ scale: 1.3, opacity: 0.5 }}
+                  initial={{ scale: 1.05, opacity: 0.8 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
                   className="text-6xl font-bold gradient-text"

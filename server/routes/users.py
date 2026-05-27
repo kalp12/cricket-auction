@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from db.database import get_db
 from models.models import User
@@ -22,16 +22,14 @@ def invite_user(invite: InviteRequest, current_user: UserResponse = Depends(requ
     """Invite a new user by email (owner only). Generates an invite token."""
     if invite.role not in ("editor", "viewer"):
         raise HTTPException(status_code=400, detail="Invite role must be 'editor' or 'viewer'")
-    # Check if email already has a user
     existing = db.query(User).filter(User.email == invite.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="A user with this email already exists")
     token = str(uuid.uuid4())
-    # Store pending invite as a user record with invite_token
     pending = User(
         email=invite.email,
-        username="",  # placeholder, filled on registration
-        password_hash="",  # placeholder
+        username=None,
+        password_hash=None,
         role=invite.role,
         invite_token=token,
     )
@@ -47,13 +45,12 @@ def register_with_invite(data: UserCreate, db: Session = Depends(get_db)):
     pending = db.query(User).filter(User.invite_token == data.invite_token).first()
     if not pending:
         raise HTTPException(status_code=400, detail="Invalid invite token")
-    # Check username uniqueness
     existing = db.query(User).filter(User.username == data.username).first()
     if existing and existing.id != pending.id:
         raise HTTPException(status_code=400, detail="Username already taken")
     pending.username = data.username
     pending.password_hash = pwd_context.hash(data.password)
-    pending.invite_token = None  # consumed
+    pending.invite_token = None
     db.commit()
     db.refresh(pending)
     access_token = create_access_token(data={"sub": pending.username, "role": pending.role})

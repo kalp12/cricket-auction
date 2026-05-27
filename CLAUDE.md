@@ -74,6 +74,7 @@ cd server && ./venv/Scripts/python.exe -m pytest test/test_auction.py -v
 - `bids.py` — WebSocket endpoint `/ws/auction/{auction_id}` (per-auction rooms)
 - `report.py` — post-auction report (summary, rosters, bid activity, RTM events)
 - `public.py` — spectator mode (budget tiers, no exact amounts)
+- `bonus_auction.py` — sealed bid, Dutch auction, proxy bidding endpoints
 
 **WebSocket**: Only `bids.py` `ConnectionManager` is active. `websocket/manager.py` and `routes/ws.py` are unused — do not use them.
 
@@ -108,5 +109,5 @@ PostgreSQL 16 at `localhost:5432/cricket_auction`. Auto-created on startup. Play
 - [ ] **Player Valuation Engine**: AI-driven base price suggestion
 - [ ] **Payment Integration**: Track real payments, UPI/card links
 - [ ] **Mobile App**: React Native or PWA wrapper
-- [ ] **Bonus Auction Types**: Sealed bid, Dutch auction, proxy bidding
+- [x] **Bonus Auction Types**: Sealed bid, Dutch auction, proxy bidding
 - [ ] **Cloud Deployment**: Docker + docker-compose, AWS/GCP hosting

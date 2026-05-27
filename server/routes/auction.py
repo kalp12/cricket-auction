@@ -156,7 +156,6 @@ async def mark_sold(
     if auction.rtm_enabled and player.previous_team_id and player.previous_team_id != winning_team.id:
         prev_team = db.query(Team).filter(Team.id == player.previous_team_id).first()
         if prev_team and prev_team.remaining_budget >= sold_price and prev_team.auction_id == auction.id:
-            # Pause auction and broadcast RTM prompt
             auction.status = "rtm_pending"
             db.commit()
 
@@ -191,7 +190,6 @@ async def mark_sold(
                 "status": "rtm_pending",
             }
 
-    # No RTM — complete the sale directly
     return await _complete_sale(auction, player, winning_team, sold_price, db)
 
 
@@ -208,15 +206,15 @@ async def _complete_sale(auction, player, winning_team, sold_price, db):
 
         winning_team.remaining_budget -= sold_price
 
-        # Auto-advance to next unsold player
-        next_p = db.query(Player).filter(
+        # Check if any unsold players remain
+        remaining = db.query(Player).filter(
             Player.auction_id == auction.id,
             Player.status == "unsold"
-        ).order_by(Player.id).first()
+        ).count()
 
-        if next_p:
-            auction.current_player_id = next_p.id
-            auction.current_bid = next_p.base_price
+        if remaining > 0:
+            auction.current_player_id = None
+            auction.current_bid = 0
             auction.current_team_id = None
             auction.status = "live"
         else:
@@ -232,10 +230,23 @@ async def _complete_sale(auction, player, winning_team, sold_price, db):
 
     db.refresh(auction)
     db.refresh(winning_team)
-    next_player_name = None
-    if auction.current_player_id:
-        np = db.query(Player).filter(Player.id == auction.current_player_id).first()
-        next_player_name = np.name if np else None
+
+    # Build player data for the sold broadcast
+    player_data = {
+        "id": player.id,
+        "name": player.name,
+        "role": player.role,
+        "country": player.country,
+        "base_price": player.base_price,
+        "image_url": player.image_url,
+        "matches": player.matches,
+        "runs": player.runs,
+        "wickets": player.wickets,
+        "batting_avg": player.batting_avg,
+        "batting_sr": player.batting_sr,
+        "bowling_avg": player.bowling_avg,
+        "bowling_econ": player.bowling_econ,
+    }
 
     await ws_manager.broadcast(auction.id, {
         "type": "sold",
@@ -246,7 +257,7 @@ async def _complete_sale(auction, player, winning_team, sold_price, db):
         "team_id": winning_team.id,
         "price": sold_price,
         "current_player_id": auction.current_player_id,
-        "current_player_name": next_player_name,
+        "current_player": None,
         "current_bid": auction.current_bid,
         "status": auction.status,
         "play_sound": "gavel",
@@ -265,7 +276,6 @@ async def _complete_sale(auction, player, winning_team, sold_price, db):
         "price": sold_price,
         "status": auction.status,
         "current_player_id": auction.current_player_id,
-        "current_player_name": next_player_name,
         "current_bid": auction.current_bid,
     }
 
@@ -388,19 +398,20 @@ async def mark_unsold(
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    player.status = "unsold"
+    # Mark as "passed" so they don't come up again in this round
+    player.status = "passed"
 
-    # Auto-advance to next unsold player (skip the current one)
-    next_p = db.query(Player).filter(
+    # Check if any unsold players remain (excluding passed ones)
+    remaining = db.query(Player).filter(
         Player.auction_id == auction.id,
-        Player.status == "unsold",
-        Player.id != player.id
-    ).order_by(Player.id).first()
+        Player.status == "unsold"
+    ).count()
 
-    if next_p:
-        auction.current_player_id = next_p.id
-        auction.current_bid = next_p.base_price
+    if remaining > 0:
+        auction.current_player_id = None
+        auction.current_bid = 0
         auction.current_team_id = None
+        auction.status = "live"
     else:
         auction.status = "ended"
         auction.current_player_id = None
@@ -408,19 +419,14 @@ async def mark_unsold(
         auction.current_team_id = None
 
     db.commit()
-
     db.refresh(auction)
-    next_player_name = None
-    if auction.current_player_id:
-        np = db.query(Player).filter(Player.id == auction.current_player_id).first()
-        next_player_name = np.name if np else None
 
     await ws_manager.broadcast(auction.id, {
         "type": "unsold",
         "player_name": player.name,
         "player_id": player.id,
         "current_player_id": auction.current_player_id,
-        "current_player_name": next_player_name,
+        "current_player": None,
         "current_bid": auction.current_bid,
         "status": auction.status,
         "play_sound": "unsold",
@@ -434,7 +440,6 @@ async def mark_unsold(
         "message": "Player marked as unsold",
         "status": auction.status,
         "current_player_id": auction.current_player_id,
-        "current_player_name": next_player_name,
         "current_bid": auction.current_bid,
     }
 

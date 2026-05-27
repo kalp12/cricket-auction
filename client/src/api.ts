@@ -39,6 +39,7 @@ export const deleteUserApi = async (userId: number) =>
 // ── Auctions (CRUD) ───────────────────────────────────
 export const createAuction = async (data: {
   name: string
+  auction_type?: string
   timer_seconds?: number
   timer_mode?: string
   base_bid?: number
@@ -46,6 +47,9 @@ export const createAuction = async (data: {
   min_players?: number
   max_players?: number
   image_url?: string
+  dutch_start_price?: number
+  dutch_decrement?: number
+  dutch_interval?: number
 }) => (await axios.post(`${BASE}/api/auctions`, data, { headers: headers() })).data
 
 export const listAuctions = async () =>
@@ -65,6 +69,9 @@ export const startAuctionById = async (id: number) =>
 
 export const nextPlayer = async (id: number, playerId?: number) =>
   (await axios.post(`${BASE}/api/auctions/${id}/next-player`, null, { headers: headers() })).data
+
+export const reauctionPlayers = async (id: number) =>
+  (await axios.post(`${BASE}/api/auctions/${id}/reauction`, null, { headers: headers() })).data
 
 // ── Auction Flow (single active auction) ──────────────
 export const getAuctionState = async (auctionId?: number) =>
@@ -295,5 +302,27 @@ export const getPublicAuction = async (auctionId: number) =>
 
 export const getPublicAuctionState = async (auctionId?: number) =>
   (await axios.get(`${BASE}/api/auction/state/public`, { params: auctionId ? { auction_id: auctionId } : {} })).data
+
+// ── Bonus Auction Types ───────────────────────────────
+export const submitSealedBid = async (teamId: number, amount: number, auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/sealed-bid`, null, { params: { team_id: teamId, amount, auction_id: auctionId }, headers: headers() })).data
+
+export const revealSealedBids = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/sealed-reveal`, null, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const confirmSealedSale = async (auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/sealed-confirm`, null, { params: { auction_id: auctionId }, headers: headers() })).data
+
+export const startDutchAuction = async (auctionId: number, playerId: number) =>
+  (await axios.post(`${BASE}/api/auction/dutch-start`, null, { params: { auction_id: auctionId, player_id: playerId }, headers: headers() })).data
+
+export const acceptDutchPrice = async (teamId: number, auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/dutch-accept`, null, { params: { team_id: teamId, auction_id: auctionId }, headers: headers() })).data
+
+export const setProxyBid = async (teamId: number, playerId: number, maxAmount: number, auctionId?: number) =>
+  (await axios.post(`${BASE}/api/auction/proxy-bid`, null, { params: { team_id: teamId, player_id: playerId, max_amount: maxAmount, auction_id: auctionId }, headers: headers() })).data
+
+export const getProxyBids = async (auctionId: number, playerId?: number) =>
+  (await axios.get(`${BASE}/api/auction/proxy-bids`, { params: { auction_id: auctionId, player_id: playerId }, headers: headers() })).data
 
 export { BASE, WS_BASE }

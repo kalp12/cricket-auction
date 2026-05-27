@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
 import {
   ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
-  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search, Share2, Eye
+  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search, Share2, Eye, RotateCcw
 } from 'lucide-react'
-import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, rtmAccept, rtmDecline, WS_BASE } from '../api'
+import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, reauctionPlayers, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, rtmAccept, rtmDecline, revealSealedBids, confirmSealedSale, startDutchAuction, acceptDutchPrice, WS_BASE, assetUrl } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
 import { EmptyState, Skeleton, SkeletonLine, SkeletonCircle } from '../components/ui'
@@ -54,6 +55,18 @@ const getTeamKey = (team: Team): string => {
   return team.name[0].toUpperCase()
 }
 
+const fireConfetti = () => {
+  const duration = 1500
+  const end = Date.now() + duration
+  const frame = () => {
+    confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.8 }, colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'] })
+    confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.8 }, colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'] })
+    if (Date.now() < end) requestAnimationFrame(frame)
+  }
+  frame()
+  confetti({ particleCount: 100, spread: 100, origin: { y: 0.6 }, colors: ['#fbbf24', '#22c55e', '#3b82f6', '#f43f5e', '#a855f7'], startVelocity: 45 })
+}
+
 const SOUND_BUTTONS: { key: SoundKey; label: string; icon: string; color: string }[] = [
   { key: 'gavel', label: 'Gavel', icon: '🔨', color: 'from-amber-600 to-amber-500' },
   { key: 'celebration', label: 'Celebrate', icon: '🎉', color: 'from-purple-600 to-purple-500' },
@@ -83,7 +96,14 @@ export default function AuctionLive() {
   const [notificationsOn, setNotificationsOn] = useState(areNotificationsEnabled())
   const [showSoundBoard, setShowSoundBoard] = useState(false)
   const [rtmPrompt, setRtmPrompt] = useState<any>(null)
-const [showPlayerSearch, setShowPlayerSearch] = useState(false)
+  const [sealedBids, setSealedBids] = useState<any[]>([])
+  const [sealedRevealed, setSealedRevealed] = useState(false)
+  const [dutchCurrentPrice, setDutchCurrentPrice] = useState<number | null>(null)
+  const [showPlayerSearch, setShowPlayerSearch] = useState(false)
+
+  // Sold/Unsold stamp overlay state
+  const [soldOverlay, setSoldOverlay] = useState<{ type: 'sold' | 'unsold'; playerName: string; teamName?: string; teamShort?: string; price?: number } | null>(null)
+  const overlayActiveRef = useRef(false)
 
   const currentPlayerRef = useRef(currentPlayer)
   currentPlayerRef.current = currentPlayer
@@ -148,9 +168,12 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
       setCurrentBid(auctionData.current_bid)
       setCurrentTeamId(auctionData.current_team_id)
       setStatus(auctionData.status)
+      // Only show current player if one is actually set
       if (auctionData.current_player_id) {
         const p = (playersData.players || playersData).find((pl: any) => pl.id === auctionData.current_player_id)
         setCurrentPlayer(p || null)
+      } else {
+        setCurrentPlayer(null)
       }
       buildKeyMap(teamsData)
     } catch (e: any) {
@@ -182,33 +205,96 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
           amount: msg.amount, id: bidIdCounter.current,
         }, ...prev].slice(0, 10))
       } else if (msg.type === 'sold') {
-        setBidEvents([]); setCurrentBid(msg.price || 0); setStatus(msg.status || 'live')
-        notify('SOLD!', `${currentPlayerRef.current?.name || 'Player'} sold to ${msg.team_name || 'team'} for ${formatPrice(msg.price || currentBid)}`, `sold-${currentPlayerRef.current?.id || Date.now()}`)
-        fetchData()
-      } else if (msg.type === 'unsold') {
-        setBidEvents([]); setCurrentBid(msg.current_bid || 0); setStatus(msg.status || 'live')
-        notify('UNSOLD', `${currentPlayerRef.current?.name || 'Player'} goes unsold`, `unsold-${currentPlayerRef.current?.id || Date.now()}`)
-        fetchData()
+        setBidEvents([])
+        setCurrentBid(msg.price || 0)
+        setStatus(msg.status || 'live')
+          if (!overlayActiveRef.current) {
+            setSoldOverlay({
+              type: 'sold',
+              playerName: msg.player_name || currentPlayerRef.current?.name || 'Player',
+              teamName: msg.team_name,
+              teamShort: msg.team_short,
+              price: msg.price,
+            })
+            overlayActiveRef.current = true
+            fireConfetti()
+            soundBoard.playSound('gavel')
+            notify('SOLD!', `${msg.player_name || currentPlayerRef.current?.name || 'Player'} sold to ${msg.team_name || 'team'} for ${formatPrice(msg.price || currentBid)}`, `sold-${currentPlayerRef.current?.id || Date.now()}`)
+            setTimeout(() => {
+              setSoldOverlay(null)
+              overlayActiveRef.current = false
+              setCurrentPlayer(null)
+              setCurrentBid(0)
+              setCurrentTeamId(null)
+              fetchData()
+            }, 3000)
+          }
+        } else if (msg.type === 'unsold') {
+          setBidEvents([])
+          setCurrentBid(msg.current_bid || 0)
+          setStatus(msg.status || 'live')
+          if (!overlayActiveRef.current) {
+            setSoldOverlay({
+              type: 'unsold',
+              playerName: msg.player_name || currentPlayerRef.current?.name || 'Player',
+            })
+            overlayActiveRef.current = true
+            soundBoard.playSound('unsold')
+            notify('UNSOLD', `${msg.player_name || currentPlayerRef.current?.name || 'Player'} goes unsold`, `unsold-${currentPlayerRef.current?.id || Date.now()}`)
+            setTimeout(() => {
+              setSoldOverlay(null)
+              overlayActiveRef.current = false
+              setCurrentPlayer(null)
+              setCurrentBid(0)
+              setCurrentTeamId(null)
+              fetchData()
+            }, 2500)
+          }
       } else if (msg.type === 'rtm_prompt') {
-  setStatus('rtm_pending')
-  setRtmPrompt({
-    playerName: msg.player_name, playerId: msg.player_id,
-    winningTeamName: msg.winning_team_name, winningTeamShort: msg.winning_team_short || '', winningTeamId: msg.winning_team_id,
-    rtmTeamName: msg.rtm_team_name, rtmTeamShort: msg.rtm_team_short || '', rtmTeamId: msg.rtm_team_id,
-    price: msg.price,
-  })
-  notify('RTM PROMPT', `${msg.rtm_team_name} has Right to Match for ${msg.player_name}`, 'rtm-'+msg.player_id)
-  soundBoard.playSound('celebration')
-} else if (msg.type === 'rtm_result') {
-  setRtmPrompt(null)
-  if (msg.rtm_accepted) {
-    notify('RTM USED!', `${msg.team_name} matched the bid for ${msg.player_name}`, 'rtm-accept-'+msg.player_id)
-    soundBoard.playSound('celebration')
-    soundBoard.playSound('gavel')
-  }
-  setBidEvents([]); setCurrentBid(0); setStatus(msg.status || 'live')
-  fetchData()
-} else if (msg.type === 'next_player') {
+        setStatus('rtm_pending')
+        setRtmPrompt({
+          playerName: msg.player_name, playerId: msg.player_id,
+          winningTeamName: msg.winning_team_name, winningTeamShort: msg.winning_team_short || '', winningTeamId: msg.winning_team_id,
+          rtmTeamName: msg.rtm_team_name, rtmTeamShort: msg.rtm_team_short || '', rtmTeamId: msg.rtm_team_id,
+          price: msg.price,
+        })
+        notify('RTM PROMPT', `${msg.rtm_team_name} has Right to Match for ${msg.player_name}`, 'rtm-'+msg.player_id)
+        soundBoard.playSound('celebration')
+      } else if (msg.type === 'rtm_result') {
+        setRtmPrompt(null)
+        if (msg.rtm_accepted) {
+          notify('RTM USED!', `${msg.team_name} matched the bid for ${msg.player_name}`, 'rtm-accept-'+msg.player_id)
+          soundBoard.playSound('celebration')
+          soundBoard.playSound('gavel')
+        }
+        setBidEvents([]); setCurrentBid(0); setCurrentTeamId(null); setStatus(msg.status || 'live')
+        setCurrentPlayer(null)
+        fetchData()
+      } else if (msg.type === 'sealed_bid_received') {
+        // A sealed bid was submitted (amount hidden)
+      } else if (msg.type === 'sealed_reveal') {
+        setSealedBids(msg.bids || [])
+        setSealedRevealed(true)
+        if (msg.winner_team_name) {
+          setCurrentBid(msg.price)
+          setCurrentTeamId(msg.winner_team_id)
+        }
+      } else if (msg.type === 'dutch_start') {
+        setDutchCurrentPrice(msg.current_price)
+        setStatus(msg.status || 'dutch_active')
+      } else if (msg.type === 'dutch_price_drop') {
+        setDutchCurrentPrice(msg.current_price)
+      } else if (msg.type === 'dutch_floor_reached') {
+        setDutchCurrentPrice(null)
+        setStatus('live')
+      } else if (msg.type === 'proxy_auto_bid') {
+        setCurrentBid(msg.amount); setCurrentTeamId(msg.team_id)
+        bidIdCounter.current += 1
+        setBidEvents(prev => [{
+          team_name: msg.team_name, team_short: msg.team_short || msg.team_name?.substring(0, 3).toUpperCase() || '',
+          amount: msg.amount, id: bidIdCounter.current,
+        }, ...prev].slice(0, 10))
+      } else if (msg.type === 'next_player') {
         setBidEvents([]); setCurrentBid(msg.current_bid); setCurrentTeamId(null)
         setStatus(msg.status)
         if (msg.current_player) { setCurrentPlayer(msg.current_player) }
@@ -216,6 +302,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
       } else if (msg.type === 'state') {
         setCurrentBid(msg.current_bid); setCurrentTeamId(msg.current_team_id); setStatus(msg.status)
         if (msg.current_player) setCurrentPlayer(msg.current_player)
+        else setCurrentPlayer(null)
         if (msg.timer_mode) { /* timer_mode from state */ }
         if (msg.timer_seconds && msg.status === 'live' && (auction?.timer_mode || 'auto') === 'auto') { setTimer(msg.timer_seconds); startCountdown() }
         fetchData()
@@ -232,20 +319,30 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     if (status !== 'live') stopCountdown()
   }, [status, auction?.timer_mode, startCountdown, stopCountdown])
 
-  // Keyboard handler
+  // Keyboard handler - use ref to avoid re-renders on every key press
+  const statusRef = useRef(status)
+  statusRef.current = status
+  const lastBidTimeRef = useRef<Record<number, number>>({})
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
+      // Ignore key repeat (held down) and input fields
+      if (e.repeat) return
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'SELECT') return
       const key = e.key.toUpperCase()
       const team = keyMap.current[key]
-      if (team && status === 'live' && wsRef.current?.readyState === WebSocket.OPEN) {
+      if (team && statusRef.current === 'live' && wsRef.current?.readyState === WebSocket.OPEN) {
+        // Throttle: 500ms between bids for same team
+        const now = Date.now()
+        if (now - (lastBidTimeRef.current[team.id] || 0) < 500) return
+        lastBidTimeRef.current[team.id] = now
         wsRef.current.send(JSON.stringify({ type: 'bid', team_id: team.id, auto: true }))
         e.preventDefault()
+        e.stopPropagation()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [status])
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [])
 
   // Actions
   const handleStart = async () => {
@@ -266,16 +363,36 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
+  const showSoldOverlay = (type: 'sold' | 'unsold', playerName: string, teamName?: string, teamShort?: string, price?: number) => {
+    setSoldOverlay({ type, playerName, teamName, teamShort, price })
+    if (type === 'sold') {
+      fireConfetti()
+      soundBoard.playSound('gavel')
+    } else {
+      soundBoard.playSound('unsold')
+    }
+  }
+
   const handleSold = async () => {
     if (!auctionId) return
     try {
       const res = await soldPlayer(Number(auctionId))
-      setBidEvents([]); setCurrentBid(res.current_bid || 0); setStatus(res.status || 'live')
-      notify('SOLD!', `${currentPlayer?.name || 'Player'} sold for ${formatPrice(currentBid)}`, `sold-${currentPlayer?.id || Date.now()}`)
-      const timerMode = auction?.timer_mode || 'auto'
-      if (res.status === 'live' && timerMode === 'auto') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
-      else { stopCountdown(); timerValue.current = 0 }
-      await fetchData()
+      setBidEvents([])
+      setStatus(res.status || 'live')
+      stopCountdown()
+      timerValue.current = 0
+          // Show stamp overlay
+          overlayActiveRef.current = true
+          showSoldOverlay('sold', currentPlayer?.name || 'Player', res.team, undefined, res.price)
+          notify('SOLD!', `${currentPlayer?.name || 'Player'} sold for ${formatPrice(currentBid)}`, `sold-${currentPlayer?.id || Date.now()}`)
+          setTimeout(async () => {
+            setSoldOverlay(null)
+            overlayActiveRef.current = false
+            setCurrentPlayer(null)
+            setCurrentBid(0)
+            setCurrentTeamId(null)
+            await fetchData()
+          }, 3000)
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
@@ -284,12 +401,19 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     try {
       setRtmPrompt(null)
       const res = await rtmAccept(Number(auctionId))
-      setBidEvents([]); setCurrentBid(res.current_bid || 0); setStatus(res.status || 'live')
+      setBidEvents([]); setCurrentBid(0); setStatus(res.status || 'live')
       toast.success('RTM accepted! Player goes to previous team')
-      const timerMode = auction?.timer_mode || 'auto'
-      if (res.status === 'live' && timerMode === 'auto') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
-      else { stopCountdown(); timerValue.current = 0 }
-      await fetchData()
+      stopCountdown()
+      timerValue.current = 0
+          overlayActiveRef.current = true
+          showSoldOverlay('sold', rtmPrompt?.playerName || 'Player', rtmPrompt?.rtmTeamName, rtmPrompt?.rtmTeamShort, rtmPrompt?.price)
+          setTimeout(async () => {
+            setSoldOverlay(null)
+            overlayActiveRef.current = false
+            setCurrentPlayer(null)
+            setCurrentTeamId(null)
+            await fetchData()
+          }, 3000)
     } catch (e: any) { setError(e?.response?.data?.detail || 'RTM failed'); setRtmPrompt(null) }
   }
 
@@ -298,12 +422,19 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     try {
       setRtmPrompt(null)
       const res = await rtmDecline(Number(auctionId))
-      setBidEvents([]); setCurrentBid(res.current_bid || 0); setStatus(res.status || 'live')
+      setBidEvents([]); setCurrentBid(0); setStatus(res.status || 'live')
       toast('RTM declined — player sold to winning bidder', { icon: '➡️' })
-      const timerMode = auction?.timer_mode || 'auto'
-      if (res.status === 'live' && timerMode === 'auto') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
-      else { stopCountdown(); timerValue.current = 0 }
-      await fetchData()
+      stopCountdown()
+      timerValue.current = 0
+          overlayActiveRef.current = true
+          showSoldOverlay('sold', rtmPrompt?.playerName || 'Player', rtmPrompt?.winningTeamName, rtmPrompt?.winningTeamShort, rtmPrompt?.price)
+          setTimeout(async () => {
+            setSoldOverlay(null)
+            overlayActiveRef.current = false
+            setCurrentPlayer(null)
+            setCurrentTeamId(null)
+            await fetchData()
+          }, 3000)
     } catch (e: any) { setError(e?.response?.data?.detail || 'RTM failed'); setRtmPrompt(null) }
   }
 
@@ -311,12 +442,30 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
     if (!auctionId) return
     try {
       const res = await unsoldPlayer(Number(auctionId))
-      setBidEvents([]); setCurrentBid(res.current_bid || 0); setStatus(res.status || 'live')
-      notify('UNSOLD', `${currentPlayer?.name || 'Player'} goes unsold`, `unsold-${currentPlayer?.id || Date.now()}`)
-      const timerMode = auction?.timer_mode || 'auto'
-      if (res.status === 'live' && timerMode === 'auto') { const t = auction?.timer_seconds || 30; setTimer(t); startCountdown() }
-      else { stopCountdown(); timerValue.current = 0 }
+      setBidEvents([])
+      setStatus(res.status || 'live')
+      stopCountdown()
+      timerValue.current = 0
+          overlayActiveRef.current = true
+          showSoldOverlay('unsold', currentPlayer?.name || 'Player')
+          notify('UNSOLD', `${currentPlayer?.name || 'Player'} goes unsold`, `unsold-${currentPlayer?.id || Date.now()}`)
+          setTimeout(async () => {
+            setSoldOverlay(null)
+            overlayActiveRef.current = false
+            setCurrentPlayer(null)
+            setCurrentBid(0)
+            setCurrentTeamId(null)
+            await fetchData()
+          }, 2500)
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
+  }
+
+  const handleReauction = async () => {
+    if (!auctionId) return
+    try {
+      const res = await reauctionPlayers(Number(auctionId))
       await fetchData()
+      toast.success(`${res.count} players back for re-auction!`)
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
@@ -360,6 +509,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
   }
 
   const unsoldPlayers = allPlayers.filter(p => p.status === 'unsold')
+  const passedCount = allPlayers.filter(p => p.status === 'passed').length
   const soldCount = allPlayers.filter(p => p.status === 'sold').length
   const leadingTeam = teams.find(t => t.id === currentTeamId)
   const nextBidAmount = currentBid > 0 ? getNextBid(currentBid, slabs) : (currentPlayer?.base_price || auction?.base_bid || 0)
@@ -423,7 +573,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
             animate={{ scale: 1, opacity: 1 }}
             className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
               status === 'live' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-              status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : status === 'rtm_pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse' :
+              status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : status === 'rtm_pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse' : status === 'dutch_active' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse' : status === 'sealed_reveal' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
               'bg-gray-500/20 text-gray-400 border border-gray-500/30'
             }`}
           >
@@ -433,30 +583,30 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
         </div>
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
           {/* Spectator share */}
-        <button
-          onClick={() => {
-            const url = `${window.location.origin}/watch/${auctionId}`
-            navigator.clipboard.writeText(url)
-            setShareCopied(true)
-            toast.success('Spectator link copied!')
-            setTimeout(() => setShareCopied(false), 2000)
-          }}
-          className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
-          title="Copy spectator link"
-          aria-label="Copy spectator link"
-        >
-          {shareCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
-          <span className="hidden sm:inline">{shareCopied ? 'Copied' : 'Share'}</span>
-        </button>
-        <button
-          onClick={() => window.open(`/watch/${auctionId}`, '_blank')}
-          className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
-          title="Open spectator view"
-          aria-label="Open spectator view"
-        >
-          <Eye className="w-4 h-4" /> Spectate
-        </button>
-        {/* Open Overlay button */}
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/watch/${auctionId}`
+              navigator.clipboard.writeText(url)
+              setShareCopied(true)
+              toast.success('Spectator link copied!')
+              setTimeout(() => setShareCopied(false), 2000)
+            }}
+            className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
+            title="Copy spectator link"
+            aria-label="Copy spectator link"
+          >
+            {shareCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+            <span className="hidden sm:inline">{shareCopied ? 'Copied' : 'Share'}</span>
+          </button>
+          <button
+            onClick={() => window.open(`/watch/${auctionId}`, '_blank')}
+            className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
+            title="Open spectator view"
+            aria-label="Open spectator view"
+          >
+            <Eye className="w-4 h-4" /> Spectate
+          </button>
+          {/* Open Overlay button */}
           <button
             onClick={() => window.open(`/overlay/${auctionId}`, '_blank', 'width=1920,height=1080')}
             className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors"
@@ -466,7 +616,8 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
           </button>
           <button
             onClick={() => setShowSoundBoard(!showSoundBoard)}
-            aria-label="Toggle sound board" className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}
+            aria-label="Toggle sound board"
+            className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}
           >
             <Volume2 className="w-4 h-4" /> Sounds
           </button>
@@ -491,74 +642,179 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
         </motion.div>
       )}
 
-      {/* RTM Prompt Overlay */}
-<AnimatePresence>
-  {rtmPrompt && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ scale: 0.7, opacity: 0, y: 30 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
-        className="glass-strong rounded-3xl p-8 max-w-lg w-full mx-4 border-2 border-amber-400/40 shadow-2xl shadow-amber-400/20"
-      >
-        <div className="text-center mb-6">
+      {/* SOLD / UNSOLD Stamp Overlay */}
+      <AnimatePresence>
+        {soldOverlay && (
           <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-block bg-amber-400/15 border border-amber-400/30 rounded-2xl px-6 py-2 mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm ${
+              soldOverlay.type === 'sold' ? 'bg-green-500/10' : 'bg-red-500/10'
+            }`}
           >
-            <span className="font-display text-2xl tracking-wider text-amber-400">RIGHT TO MATCH</span>
+            {/* Pulse rings for sold */}
+            {soldOverlay.type === 'sold' && (
+              <>
+                <motion.div initial={{ scale: 0.5, opacity: 0.8 }} animate={{ scale: 3, opacity: 0 }} transition={{ duration: 1.2, ease: 'easeOut' }} className="absolute w-40 h-40 rounded-full border-2 border-green-400/40" />
+                <motion.div initial={{ scale: 0.5, opacity: 0.6 }} animate={{ scale: 4, opacity: 0 }} transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }} className="absolute w-40 h-40 rounded-full border border-green-400/20" />
+              </>
+            )}
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+              className="flex flex-col items-center"
+            >
+              {/* Custom stamp image or text */}
+              {soldOverlay.type === 'sold' && auction?.sold_stamp ? (
+                <motion.img
+                  initial={{ rotate: -12, scale: 0.5 }}
+                  animate={{ rotate: -8, scale: 1 }}
+                  src={assetUrl(auction.sold_stamp)!}
+                  alt="SOLD"
+                  className="max-w-md max-h-48 drop-shadow-[0_0_60px_rgba(34,197,94,0.5)]"
+                />
+              ) : soldOverlay.type === 'unsold' && auction?.unsold_stamp ? (
+                <motion.img
+                  initial={{ rotate: -8, scale: 0.5 }}
+                  animate={{ rotate: -5, scale: 1 }}
+                  src={assetUrl(auction.unsold_stamp)!}
+                  alt="UNSOLD"
+                  className="max-w-md max-h-48 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]"
+                />
+              ) : (
+                <>
+                  {soldOverlay.type === 'sold' && <Gavel className="w-16 h-16 text-amber-400 mb-4 drop-shadow-[0_0_30px_rgba(251,191,36,0.6)]" />}
+                  <span className={`font-display text-6xl md:text-8xl tracking-wider ${
+                    soldOverlay.type === 'sold'
+                      ? 'text-green-400 drop-shadow-[0_0_60px_rgba(34,197,94,0.5)]'
+                      : 'text-red-400 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]'
+                  }`}>
+                    {soldOverlay.type === 'sold' ? 'SOLD!' : 'UNSOLD'}
+                  </span>
+                </>
+              )}
+              {soldOverlay.type === 'sold' && soldOverlay.teamName && (
+                <motion.span
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-2xl text-amber-400 font-medium mt-2"
+                >
+                  {soldOverlay.teamShort || soldOverlay.teamName} — {formatPrice(soldOverlay.price || 0)}
+                </motion.span>
+              )}
+            </motion.div>
           </motion.div>
-          <div className="text-gray-400 text-sm mt-2">{rtmPrompt.playerName}</div>
-          <div className="text-3xl font-bold gradient-text mt-1">{formatPrice(rtmPrompt.price)}</div>
-        </div>
+        )}
+      </AnimatePresence>
 
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between bg-surface-2/60 rounded-xl px-5 py-3 border border-white/5">
-            <span className="text-gray-400 text-sm">Winning Bidder</span>
-            <span className="text-white font-semibold">{rtmPrompt.winningTeamShort || rtmPrompt.winningTeamName}</span>
-          </div>
-          <div className="flex items-center justify-between bg-amber-400/10 rounded-xl px-5 py-3 border border-amber-400/20">
-            <span className="text-amber-400/70 text-sm">Previous Team (RTM)</span>
-            <span className="text-amber-400 font-bold">{rtmPrompt.rtmTeamShort || rtmPrompt.rtmTeamName}</span>
-          </div>
-        </div>
-
-        <p className="text-center text-gray-500 text-sm mb-6">
-          Does <span className="text-amber-400 font-semibold">{rtmPrompt.rtmTeamShort || rtmPrompt.rtmTeamName}</span> want to match the bid and retain <span className="text-white font-semibold">{rtmPrompt.playerName}</span>?
-        </p>
-
-        <div className="flex gap-3">
-          <motion.button
-            onClick={handleRtmAccept}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-black py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+      {/* RTM Prompt Overlay */}
+      <AnimatePresence>
+        {rtmPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           >
-            MATCH — {formatPrice(rtmPrompt.price)}
-          </motion.button>
-          <motion.button
-            onClick={handleRtmDecline}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="flex-1 bg-surface-3 hover:bg-surface-4 text-gray-400 py-3.5 rounded-xl font-semibold text-lg border border-white/5"
-          >
-            Pass
-          </motion.button>
-        </div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+              className="glass-strong rounded-3xl p-8 max-w-lg w-full mx-4 border-2 border-amber-400/40 shadow-2xl shadow-amber-400/20"
+            >
+              <div className="text-center mb-6">
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="inline-block bg-amber-400/15 border border-amber-400/30 rounded-2xl px-6 py-2 mb-4"
+                >
+                  <span className="font-display text-2xl tracking-wider text-amber-400">RIGHT TO MATCH</span>
+                </motion.div>
+                <div className="text-gray-400 text-sm mt-2">{rtmPrompt.playerName}</div>
+                <div className="text-3xl font-bold gradient-text mt-1">{formatPrice(rtmPrompt.price)}</div>
+              </div>
 
-{/* Sound Board Panel */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between bg-surface-2/60 rounded-xl px-5 py-3 border border-white/5">
+                  <span className="text-gray-400 text-sm">Winning Bidder</span>
+                  <span className="text-white font-semibold">{rtmPrompt.winningTeamShort || rtmPrompt.winningTeamName}</span>
+                </div>
+                <div className="flex items-center justify-between bg-amber-400/10 rounded-xl px-5 py-3 border border-amber-400/20">
+                  <span className="text-amber-400/70 text-sm">Previous Team (RTM)</span>
+                  <span className="text-amber-400 font-bold">{rtmPrompt.rtmTeamShort || rtmPrompt.rtmTeamName}</span>
+                </div>
+              </div>
+
+              <p className="text-center text-gray-500 text-sm mb-6">
+                Does <span className="text-amber-400 font-semibold">{rtmPrompt.rtmTeamShort || rtmPrompt.rtmTeamName}</span> want to match the bid and retain <span className="text-white font-semibold">{rtmPrompt.playerName}</span>?
+              </p>
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={handleRtmAccept}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-black py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+                >
+                  MATCH — {formatPrice(rtmPrompt.price)}
+                </motion.button>
+                <motion.button
+                  onClick={handleRtmDecline}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex-1 bg-surface-3 hover:bg-surface-4 text-gray-400 py-3.5 rounded-xl font-semibold text-lg border border-white/5"
+                >
+                  Pass
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sealed Bid Reveal Panel */}
+      <AnimatePresence>
+        {auction?.auction_type === 'sealed' && sealedRevealed && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-purple-500/10 border-b border-purple-500/20 px-6 py-4">
+            <div className="max-w-2xl mx-auto">
+              <h3 className="text-purple-400 font-display text-lg tracking-wider mb-3">SEALED BIDS REVEALED</h3>
+              <div className="space-y-2">
+                {sealedBids.map((b: any, i: number) => (
+                  <div key={i} className={"flex items-center justify-between bg-surface-2/60 rounded-xl px-4 py-2 border " + (i === 0 ? 'border-accent-gold/40 bg-accent-gold/5' : 'border-white/5')}>
+                    <span className={i === 0 ? 'text-accent-gold font-bold' : 'text-gray-300'}>{b.team_short || b.team_name}</span>
+                    <span className={"font-mono font-bold " + (i === 0 ? 'text-accent-gold text-lg' : 'text-gray-500')}>{formatPrice(b.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              {canEdit && sealedBids.length > 0 && (
+                <motion.button onClick={async () => { try { await confirmSealedSale(Number(auctionId)); setSealedRevealed(false); setSealedBids([]); fetchData() } catch (e: any) { toast.error(e?.response?.data?.detail || 'Failed') } }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mt-4 bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-500/20">
+                  Confirm Sale
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dutch Auction Price Display */}
+      {auction?.auction_type === 'dutch' && dutchCurrentPrice !== null && status === 'dutch_active' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-orange-500/10 border-b border-orange-500/20 px-6 py-4 text-center">
+          <span className="text-orange-400 font-display text-sm tracking-widest">DUTCH AUCTION — PRICE DROPPING</span>
+          <motion.div key={dutchCurrentPrice} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-4xl font-bold text-orange-300 mt-1">
+            {formatPrice(dutchCurrentPrice)}
+          </motion.div>
+          <span className="text-xs text-gray-500">Decrements by {formatPrice(auction?.dutch_decrement || 100000)} every {auction?.dutch_interval || 10}s</span>
+        </motion.div>
+      )}
+
+      {/* Sound Board Panel */}
       <AnimatePresence>
         {showSoundBoard && (
           <motion.div
@@ -607,7 +863,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
                   <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
                   <motion.div
                     key={currentBid}
-                    initial={{ scale: 1.3, opacity: 0.5 }}
+          initial={{ scale: 1.05, opacity: 0.8 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
                     className="text-3xl md:text-5xl font-bold gradient-text"
@@ -650,12 +906,27 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
                   </div>
                 )}
               </motion.div>
-            ) : status === 'live' ? (
+            ) : status === 'live' || status === 'waiting' ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                <div className="text-gray-600 text-xl mb-4">No player selected</div>
-                <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
-                  <Shuffle className="w-5 h-5" /> Random Player
+            <div className="text-gray-600 text-xl mb-4">No player selected</div>
+              <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
+                <Shuffle className="w-5 h-5" /> Random Player
+              </motion.button>
+              {passedCount > 0 && (
+                <motion.button onClick={handleReauction} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-amber-500/20">
+                  <RotateCcw className="w-5 h-5" /> Re-Auction {passedCount} Passed
                 </motion.button>
+              )}
+              </motion.div>
+            ) : status === 'ended' ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+                <div className="text-gray-500 text-xl">Auction Complete</div>
+                <div className="text-gray-600 text-sm mt-2">{soldCount} sold · {passedCount} passed · {unsoldPlayers.length} remaining</div>
+            {passedCount > 0 && (
+              <motion.button onClick={handleReauction} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-4 bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-amber-500/20">
+                <RotateCcw className="w-5 h-5" /> Re-Auction {passedCount} Passed Players
+              </motion.button>
+            )}
               </motion.div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
@@ -668,7 +939,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
           </div>
 
           {/* Control Bar */}
-          {status === 'live' && currentPlayer && (
+          {status === 'live' && currentPlayer && !soldOverlay && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -755,7 +1026,7 @@ const [showPlayerSearch, setShowPlayerSearch] = useState(false)
           <div className="border-t border-white/5 p-3 max-h-40 overflow-y-auto dark-scrollbar">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Bid History</h3>
             {bidEvents.length === 0 ? (
-                <EmptyState icon={TrendingUp} title="No bids yet" message="Waiting for the first bid..." className="py-2" />
+              <EmptyState icon={TrendingUp} title="No bids yet" message="Waiting for the first bid..." className="py-2" />
             ) : (
               <div className="space-y-1">
                 {bidEvents.map((evt, i) => (

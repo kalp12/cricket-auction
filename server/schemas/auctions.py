@@ -17,6 +17,7 @@ class AuctionCreate(BaseModel):
 
 class AuctionUpdate(BaseModel):
     name: Optional[str] = None
+    auction_type: Optional[str] = None
     timer_seconds: Optional[int] = None
     timer_mode: Optional[str] = None
     base_bid: Optional[float] = None
@@ -25,6 +26,10 @@ class AuctionUpdate(BaseModel):
     max_players: Optional[int] = None
     status: Optional[str] = None
     image_url: Optional[str] = None
+    dutch_start_price: Optional[float] = None
+    dutch_current_price: Optional[float] = None
+    dutch_decrement: Optional[float] = None
+    dutch_interval: Optional[int] = None
     sponsor_tl: Optional[str] = None
     sponsor_tr: Optional[str] = None
     sponsor_bl: Optional[str] = None
@@ -53,6 +58,11 @@ class AuctionSchema(BaseModel):
     min_players: int = 5
     max_players: int = 18
     image_url: Optional[str] = None
+    auction_type: str = "english"
+    dutch_start_price: Optional[float] = None
+    dutch_current_price: Optional[float] = None
+    dutch_decrement: Optional[float] = None
+    dutch_interval: Optional[int] = None
     sponsor_tl: Optional[str] = None
     sponsor_tr: Optional[str] = None
     sponsor_bl: Optional[str] = None

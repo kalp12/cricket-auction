@@ -63,7 +63,7 @@ function TimerCircle({ seconds, maxSeconds }: { seconds: number; maxSeconds: num
         <circle cx="59" cy="59" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
         <circle cx="59" cy="59" r={radius} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
       </svg>
-      <motion.div key={seconds} initial={{ scale: 1.3, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.15 }} className={`text-3xl font-mono font-bold ${seconds <= 5 ? 'text-red-400' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
+      <motion.div key={seconds} initial={{ scale: 1.05, opacity: 0.8 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.15 }} className={`text-3xl font-mono font-bold ${seconds <= 5 ? 'text-red-400' : seconds <= 10 ? 'text-yellow-400' : 'text-blue-400'}`}>
         {seconds}
       </motion.div>
     </div>
@@ -263,7 +263,8 @@ export default function AuctionOverlay() {
     }
 
     return () => { ws.close(); stopCountdown() }
-  }, [auctionId, teams, auction?.timer_seconds, setTimer, startCountdown, stopCountdown, soundBoard])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auctionId, teams, auction?.timer_seconds, setTimer, startCountdown, stopCountdown])
 
   // Timer auto-start on live
   useEffect(() => {
@@ -407,7 +408,7 @@ export default function AuctionOverlay() {
                 <div className="text-sm text-gray-500 mb-1 uppercase tracking-wider">Current Bid</div>
                 <motion.div
                   key={currentBid}
-                  initial={{ scale: 1.3, opacity: 0.5 }}
+                  initial={{ scale: 1.05, opacity: 0.8 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.15, ease: [0.34, 1.56, 0.64, 1] }}
                   className="text-6xl font-bold gradient-text"

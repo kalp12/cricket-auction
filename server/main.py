@@ -22,6 +22,7 @@ from routes.users import router as users_router
 from routes.replay import router as replay_router
 from routes.public import router as public_router
 from routes.report import router as report_router
+from routes.bonus_auction import router as bonus_auction_router
 
 # Register all models with Base before create_all
 import models.models  # noqa: F401
@@ -74,6 +75,14 @@ def run_migrations():
         ("auctions", "rtm_enabled", "ALTER TABLE auctions ADD COLUMN rtm_enabled INTEGER DEFAULT 0"),
         ("players", "previous_team_id", "ALTER TABLE players ADD COLUMN previous_team_id INTEGER REFERENCES teams(id)"),
         ("players", "rtm_used", "ALTER TABLE players ADD COLUMN rtm_used INTEGER DEFAULT 0"),
+        ("auctions", "auction_type", "ALTER TABLE auctions ADD COLUMN auction_type VARCHAR DEFAULT 'english'"),
+        ("auctions", "dutch_start_price", "ALTER TABLE auctions ADD COLUMN dutch_start_price FLOAT"),
+        ("auctions", "dutch_current_price", "ALTER TABLE auctions ADD COLUMN dutch_current_price FLOAT"),
+        ("auctions", "dutch_decrement", "ALTER TABLE auctions ADD COLUMN dutch_decrement FLOAT DEFAULT 100000"),
+        ("auctions", "dutch_interval", "ALTER TABLE auctions ADD COLUMN dutch_interval INTEGER DEFAULT 10"),
+        ("bids", "is_sealed", "ALTER TABLE bids ADD COLUMN is_sealed INTEGER DEFAULT 0"),
+        ("proxy_bids", "id", "CREATE TABLE IF NOT EXISTS proxy_bids (id SERIAL PRIMARY KEY, auction_id INTEGER REFERENCES auctions(id), team_id INTEGER REFERENCES teams(id), player_id INTEGER REFERENCES players(id), max_amount FLOAT NOT NULL, active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())"),
+        ("_meta", "users_nullable_cols", "SELECT 1"),  # handled below
     ]
 
     db = SessionLocal()
@@ -89,7 +98,7 @@ def run_migrations():
                 db.commit()
                 print(f"Migration: added {column} to {table}")
 
-        # Migrate timer_enabled → timer_mode for existing rows
+        # Migrate timer_enabled -> timer_mode for existing rows
         result = db.execute(text(
             "SELECT column_name FROM information_schema.columns "
             "WHERE table_name = 'auctions' AND column_name = 'timer_enabled'"
@@ -104,6 +113,15 @@ def run_migrations():
             db.execute(text("ALTER TABLE auctions DROP COLUMN timer_enabled"))
             db.commit()
             print("Migration: converted timer_enabled to timer_mode")
+
+        # Make username and password_hash nullable for invite flow
+        try:
+            db.execute(text("ALTER TABLE users ALTER COLUMN username DROP NOT NULL"))
+            db.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+            db.commit()
+            print("Migration: users columns now nullable")
+        except Exception:
+            db.rollback()
     except Exception as e:
         print(f"Migration error: {e}")
         db.rollback()
@@ -139,6 +157,7 @@ app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(replay_router, prefix="/api/auctions", tags=["replay"])
 app.include_router(report_router, prefix="/api", tags=["report"])
 app.include_router(public_router, prefix="/api", tags=["public"])
+app.include_router(bonus_auction_router, prefix="/api/auction", tags=["bonus-auction"])
 app.include_router(bids_router, tags=["websocket"])
 
 

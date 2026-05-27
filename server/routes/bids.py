@@ -5,6 +5,7 @@ from models.models import Bid, Auction, Team, Player
 from routes.slabs import get_next_bid_amount
 from event_recorder import record_event
 import json
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 router = APIRouter()
@@ -123,6 +124,10 @@ async def websocket_endpoint(
             "sponsor_tr": auction.sponsor_tr,
             "sponsor_bl": auction.sponsor_bl,
             "sponsor_br": auction.sponsor_br,
+            "auction_type": auction.auction_type,
+            "dutch_current_price": auction.dutch_current_price,
+            "dutch_decrement": auction.dutch_decrement,
+            "dutch_interval": auction.dutch_interval,
         }
 
         await websocket.send_text(json.dumps(state_msg))

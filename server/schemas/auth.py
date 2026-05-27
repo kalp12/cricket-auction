@@ -15,9 +15,10 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    username: str
+    username: Optional[str] = None
     role: str = "viewer"
     email: Optional[str] = None
+    invite_token: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -31,11 +32,11 @@ class UserCreate(BaseModel):
 
 class InviteRequest(BaseModel):
     email: str
-    role: str = "viewer"  # editor / viewer
+    role: str = "viewer"
 
 
 class RoleUpdate(BaseModel):
-    role: str  # owner / editor / viewer
+    role: str
 
 
 class InviteResponse(BaseModel):

@@ -9,9 +9,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=True)
     email = Column(String, unique=True, nullable=True)
-    password_hash = Column(String, nullable=False)
+    password_hash = Column(String, nullable=True)
     role = Column(String, default="viewer")  # owner / editor / viewer
     invite_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -78,7 +78,7 @@ class Auction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, default="Untitled Auction")
-    status = Column(String, default="waiting")  # waiting/live/paused/ended
+    status = Column(String, default="waiting")  # waiting/live/paused/ended/rtm_pending/sealed_reveal/dutch_active
     current_player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     current_bid = Column(Float, default=0)
     current_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
@@ -89,6 +89,15 @@ class Auction(Base):
     min_players = Column(Integer, default=5)
     max_players = Column(Integer, default=18)
     image_url = Column(String, nullable=True)
+
+    # Auction type: english (default), sealed, dutch, proxy
+    auction_type = Column(String, default="english")
+
+    # Dutch auction fields
+    dutch_start_price = Column(Float, nullable=True)
+    dutch_current_price = Column(Float, nullable=True)
+    dutch_decrement = Column(Float, default=100000)
+    dutch_interval = Column(Integer, default=10)
 
     # Sponsor corner logos
     sponsor_tl = Column(String, nullable=True)  # top-left
@@ -143,6 +152,7 @@ class Bid(Base):
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
     amount = Column(Float, nullable=False)
+    is_sealed = Column(Integer, default=0) # 1=sealed bid (hidden until reveal)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     auction = relationship("Auction", back_populates="bids")
@@ -209,3 +219,19 @@ class AuctionEvent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     auction = relationship("Auction", backref="events")
+
+
+class ProxyBid(Base):
+    __tablename__ = "proxy_bids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    max_amount = Column(Float, nullable=False)
+    active = Column(Integer, default=1) # 1=active, 0=exhausted/won
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    auction = relationship("Auction", foreign_keys=[auction_id])
+    team = relationship("Team", foreign_keys=[team_id])
+    player = relationship("Player", foreign_keys=[player_id])
