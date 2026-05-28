@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { QRCodeSVG } from 'qrcode.react'
 import { Copy, Check, QrCode, X, Gavel } from 'lucide-react'
-import { getPublicAuction, WS_BASE, assetUrl } from '../api'
+import { getPublicAuction, WS_BASE } from '../api'
 import { useSoundBoard } from '../hooks/useSoundBoard'
 import toast from 'react-hot-toast'
 
@@ -72,7 +72,6 @@ const fireConfetti = () => {
 
 export default function SpectatorWatch() {
   const { auctionId } = useParams<{ auctionId: string }>()
-  const navigate = useNavigate()
   const wsRef = useRef<WebSocket | null>(null)
 
   const [auction, setAuction] = useState<any>(null)

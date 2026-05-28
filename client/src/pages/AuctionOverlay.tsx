@@ -211,7 +211,6 @@ export default function AuctionOverlay() {
 
       else if (msg.type === 'bid_update') {
         setCurrentBid(msg.amount)
-        const t = teams.find(tm => tm.id === msg.team_id)
         setCurrentTeam({ id: msg.team_id, name: msg.team_name, short_name: msg.team_short } as TeamData)
         if (timerMode.current === 'auto') {
           setTimer(msg.timer_seconds)

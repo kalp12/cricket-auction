@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from db.database import get_db
-from models.models import Bid, Auction, Team, Player
+from models.models import Bid, Auction, Team, Player, TeamPlayer
 from routes.slabs import get_next_bid_amount
 from event_recorder import record_event
 import json
@@ -175,6 +175,13 @@ async def websocket_endpoint(
                     ))
                     continue
 
+                # Prevent same-team consecutive bids on same player
+                if auction.current_team_id == team_id:
+                    await websocket.send_text(json.dumps(
+                        {"type": "error", "message": "Cannot place consecutive bids on same player"}
+                    ))
+                    continue
+
                 # Auto-increment: calculate next valid bid from slabs
                 if auto and not amount:
                     amount = get_next_bid_amount(auction_id, auction.current_bid, db)
@@ -195,6 +202,13 @@ async def websocket_endpoint(
                 if amount > team.remaining_budget:
                     await websocket.send_text(json.dumps(
                         {"type": "error", "message": "Insufficient budget"}
+                    ))
+                    continue
+
+                team_players = db.query(TeamPlayer).filter(TeamPlayer.team_id == team.id).count()
+                if team_players >= team.max_players:
+                    await websocket.send_text(json.dumps(
+                        {"type": "error", "message": "Team has reached max players"}
                     ))
                     continue
 

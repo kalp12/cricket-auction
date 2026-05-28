@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import {
-  ArrowLeft, Settings, Play, Pause, SkipForward, Check, X, Keyboard,
-  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, VolumeX, Timer, TimerOff, TrendingUp, Search, Share2, Eye, RotateCcw
+  ArrowLeft, Settings, Play, Pause, Check, X, Keyboard,
+  Shuffle, Bell, BellOff, Gavel, ExternalLink, Volume2, TimerOff, TrendingUp, Share2, Eye
 } from 'lucide-react'
-import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, reauctionPlayers, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, rtmAccept, rtmDecline, revealSealedBids, confirmSealedSale, startDutchAuction, acceptDutchPrice, WS_BASE, assetUrl } from '../api'
+import { getAuction, getPlayers, getTeams, getSlabs, startAuctionById, nextPlayer, soldPlayer, unsoldPlayer, pauseAuction, resumeAuction, triggerSound, rtmAccept, rtmDecline, WS_BASE } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSoundBoard, type SoundKey } from '../hooks/useSoundBoard'
 import { EmptyState, Skeleton, SkeletonLine, SkeletonCircle } from '../components/ui'
@@ -99,8 +99,6 @@ export default function AuctionLive() {
   const [sealedBids, setSealedBids] = useState<any[]>([])
   const [sealedRevealed, setSealedRevealed] = useState(false)
   const [dutchCurrentPrice, setDutchCurrentPrice] = useState<number | null>(null)
-  const [showPlayerSearch, setShowPlayerSearch] = useState(false)
-
   // Sold/Unsold stamp overlay state
   const [soldOverlay, setSoldOverlay] = useState<{ type: 'sold' | 'unsold'; playerName: string; teamName?: string; teamShort?: string; price?: number } | null>(null)
   const overlayActiveRef = useRef(false)
@@ -141,7 +139,6 @@ export default function AuctionLive() {
 
   // Build shortcut key map
   const keyMap = useRef<Record<string, Team>>({})
-  const playerSearchRef = useRef<HTMLInputElement>(null)
 
   const buildKeyMap = useCallback((teamsList: Team[]) => {
     const map: Record<string, Team> = {}
@@ -155,35 +152,35 @@ export default function AuctionLive() {
   }, [])
 
   // Fetch data
+  const _loadData = useCallback(async () => {
+    if (!auctionId) return
+    const [auctionData, teamsData, slabsData, playersData] = await Promise.all([
+      getAuction(Number(auctionId)), getTeams(Number(auctionId)), getSlabs(Number(auctionId)), getPlayers(Number(auctionId)),
+    ])
+    setAuction(auctionData); setTeams(teamsData); setSlabs(slabsData)
+    setAllPlayers(playersData.players || playersData)
+    setCurrentBid(auctionData.current_bid)
+    setCurrentTeamId(auctionData.current_team_id)
+    setStatus(auctionData.status)
+    if (auctionData.current_player_id) {
+      const p = (playersData.players || playersData).find((pl: any) => pl.id === auctionData.current_player_id)
+      setCurrentPlayer(p || null)
+    } else {
+      setCurrentPlayer(null)
+    }
+    buildKeyMap(teamsData)
+  }, [auctionId, buildKeyMap])
+
   const fetchData = useCallback(async () => {
     if (!auctionId) return
     setLoading(true)
     setError('')
-    try {
-      const [auctionData, teamsData, slabsData, playersData] = await Promise.all([
-        getAuction(Number(auctionId)), getTeams(Number(auctionId)), getSlabs(Number(auctionId)), getPlayers(Number(auctionId)),
-      ])
-      setAuction(auctionData); setTeams(teamsData); setSlabs(slabsData)
-      setAllPlayers(playersData.players || playersData)
-      setCurrentBid(auctionData.current_bid)
-      setCurrentTeamId(auctionData.current_team_id)
-      setStatus(auctionData.status)
-      // Only show current player if one is actually set
-      if (auctionData.current_player_id) {
-        const p = (playersData.players || playersData).find((pl: any) => pl.id === auctionData.current_player_id)
-        setCurrentPlayer(p || null)
-      } else {
-        setCurrentPlayer(null)
-      }
-      buildKeyMap(teamsData)
-    } catch (e: any) {
+    try { await _loadData() }
+    catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || 'Failed to load auction data'
-      setError(msg)
-      toast.error(msg)
-    } finally {
-      setLoading(false)
-    }
-  }, [auctionId, buildKeyMap])
+      setError(msg); toast.error(msg)
+    } finally { setLoading(false) }
+  }, [_loadData, auctionId])
 
   // WebSocket connection
   useEffect(() => {
@@ -226,7 +223,6 @@ export default function AuctionLive() {
               setCurrentPlayer(null)
               setCurrentBid(0)
               setCurrentTeamId(null)
-              fetchData()
             }, 3000)
           }
         } else if (msg.type === 'unsold') {
@@ -247,19 +243,8 @@ export default function AuctionLive() {
               setCurrentPlayer(null)
               setCurrentBid(0)
               setCurrentTeamId(null)
-              fetchData()
             }, 2500)
           }
-      } else if (msg.type === 'rtm_prompt') {
-        setStatus('rtm_pending')
-        setRtmPrompt({
-          playerName: msg.player_name, playerId: msg.player_id,
-          winningTeamName: msg.winning_team_name, winningTeamShort: msg.winning_team_short || '', winningTeamId: msg.winning_team_id,
-          rtmTeamName: msg.rtm_team_name, rtmTeamShort: msg.rtm_team_short || '', rtmTeamId: msg.rtm_team_id,
-          price: msg.price,
-        })
-        notify('RTM PROMPT', `${msg.rtm_team_name} has Right to Match for ${msg.player_name}`, 'rtm-'+msg.player_id)
-        soundBoard.playSound('celebration')
       } else if (msg.type === 'rtm_result') {
         setRtmPrompt(null)
         if (msg.rtm_accepted) {
@@ -269,7 +254,6 @@ export default function AuctionLive() {
         }
         setBidEvents([]); setCurrentBid(0); setCurrentTeamId(null); setStatus(msg.status || 'live')
         setCurrentPlayer(null)
-        fetchData()
       } else if (msg.type === 'sealed_bid_received') {
         // A sealed bid was submitted (amount hidden)
       } else if (msg.type === 'sealed_reveal') {
@@ -305,11 +289,11 @@ export default function AuctionLive() {
         else setCurrentPlayer(null)
         if (msg.timer_mode) { /* timer_mode from state */ }
         if (msg.timer_seconds && msg.status === 'live' && (auction?.timer_mode || 'auto') === 'auto') { setTimer(msg.timer_seconds); startCountdown() }
-        fetchData()
       }
     }
 
     return () => { ws.close(); stopCountdown() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auctionId, fetchData, setTimer, startCountdown, stopCountdown, auction?.timer_seconds, currentBid, auction?.timer_mode])
 
   // Start countdown when auction goes live (auto mode)
@@ -329,6 +313,12 @@ export default function AuctionLive() {
       if (e.repeat) return
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'SELECT') return
       const key = e.key.toUpperCase()
+      // R = Next Random Player
+      if (key === 'R') {
+        e.preventDefault()
+        handleNextPlayerButtonRef.current?.click()
+        return
+      }
       const team = keyMap.current[key]
       if (team && statusRef.current === 'live' && wsRef.current?.readyState === WebSocket.OPEN) {
         // Throttle: 500ms between bids for same team
@@ -460,15 +450,6 @@ export default function AuctionLive() {
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
   }
 
-  const handleReauction = async () => {
-    if (!auctionId) return
-    try {
-      const res = await reauctionPlayers(Number(auctionId))
-      await fetchData()
-      toast.success(`${res.count} players back for re-auction!`)
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed') }
-  }
-
   const handlePause = async () => {
     if (!auctionId) return
     try { await pauseAuction(Number(auctionId)); stopCountdown(); setStatus('paused'); toast('Auction paused', { icon: '⏸️' }) }
@@ -517,6 +498,7 @@ export default function AuctionLive() {
   const timerMode = auction?.timer_mode || 'auto'
 
   const bidIdCounter = useRef(0)
+  const handleNextPlayerButtonRef = useRef<HTMLButtonElement>(null)
 
   if (loading) {
     return (
@@ -912,21 +894,11 @@ export default function AuctionLive() {
               <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
                 <Shuffle className="w-5 h-5" /> Random Player
               </motion.button>
-              {passedCount > 0 && (
-                <motion.button onClick={handleReauction} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-amber-500/20">
-                  <RotateCcw className="w-5 h-5" /> Re-Auction {passedCount} Passed
-                </motion.button>
-              )}
               </motion.div>
             ) : status === 'ended' ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
                 <div className="text-gray-500 text-xl">Auction Complete</div>
                 <div className="text-gray-600 text-sm mt-2">{soldCount} sold · {passedCount} passed · {unsoldPlayers.length} remaining</div>
-            {passedCount > 0 && (
-              <motion.button onClick={handleReauction} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-4 bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-amber-500/20">
-                <RotateCcw className="w-5 h-5" /> Re-Auction {passedCount} Passed Players
-              </motion.button>
-            )}
               </motion.div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
@@ -945,8 +917,8 @@ export default function AuctionLive() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-4 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-center gap-2 md:gap-4"
             >
-              <motion.button onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
-                <Shuffle className="w-4 h-4" /> Random
+              <motion.button ref={handleNextPlayerButtonRef} onClick={() => handleNextPlayer()} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
+                <Shuffle className="w-4 h-4" /> Random (R)
               </motion.button>
               <motion.button onClick={handleSold} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20">
                 <Gavel className="w-4 h-4" /> SOLD

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Users, Plus, Trash2, Shield, Mail, Crown, Edit3, Eye } from 'lucide-react'
+import { Plus, Trash2, Crown, Edit3, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { listUsersApi, inviteUserApi, deleteUserApi, changeRoleApi } from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -26,7 +26,7 @@ export default function UserManagement() {
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('viewer')
-  const [inviteResult, setInviteResult] = useState<{ token: string; email: string; role: string } | null>(null)
+  const [inviteResult, setInviteResult] = useState<{ invite_token: string; email: string; role: string } | null>(null)
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -76,7 +76,7 @@ export default function UserManagement() {
 
   const copyInviteLink = () => {
     if (!inviteResult) return
-    const link = `${window.location.origin}/register-invite?token=${inviteResult.token}`
+    const link = `${window.location.origin}/register-invite?token=${inviteResult.invite_token}`
     navigator.clipboard.writeText(link)
     toast.success('Invite link copied!')
   }
@@ -123,7 +123,7 @@ export default function UserManagement() {
               <div className="flex gap-2">
                 <input
                   readOnly
-                  value={`${window.location.origin}/register-invite?token=${inviteResult.token}`}
+                  value={`${window.location.origin}/register-invite?token=${inviteResult.invite_token}`}
                   className="flex-1 px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-gray-300 text-sm font-mono"
                 />
                 <button onClick={copyInviteLink} className="px-4 py-2 rounded-lg bg-accent-gold text-black font-semibold text-sm">Copy</button>
