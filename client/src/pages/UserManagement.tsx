@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Crown, Edit3, Eye } from 'lucide-react'
+import { Plus, Trash2, Crown, Edit3, Eye, Copy, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { listUsersApi, inviteUserApi, deleteUserApi, changeRoleApi } from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -112,20 +112,13 @@ export default function UserManagement() {
 
       {/* Invite Form */}
       {showInvite && isOwner && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-strong rounded-2xl p-6 mb-6"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-strong rounded-2xl p-6 mb-6">
           {inviteResult ? (
             <div className="space-y-3">
               <h3 className="text-green-400 font-semibold">Invite Created!</h3>
               <p className="text-gray-400 text-sm">Share this link with <span className="text-white">{inviteResult.email}</span> to register as <span className="text-accent-gold">{inviteResult.role}</span>:</p>
               <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={`${window.location.origin}/register-invite?token=${inviteResult.invite_token}`}
-                  className="flex-1 px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-gray-300 text-sm font-mono"
-                />
+                <input readOnly value={`${window.location.origin}/register-invite?token=${inviteResult.invite_token}`} className="flex-1 px-3 py-2 rounded-lg bg-surface-2 border border-white/5 text-gray-300 text-sm font-mono" />
                 <button onClick={copyInviteLink} className="px-4 py-2 rounded-lg bg-accent-gold text-black font-semibold text-sm">Copy</button>
               </div>
               <button onClick={() => { setInviteResult(null); setShowInvite(false) }} className="text-sm text-gray-500 hover:text-white">Done</button>
@@ -135,17 +128,11 @@ export default function UserManagement() {
               <h3 className="text-white font-semibold">Invite New User</h3>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Email</label>
-                <input
-                  type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required
-                  className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 outline-none"
-                  placeholder="colleague@example.com"
-                />
+                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-accent-gold/50 outline-none" placeholder="colleague@example.com" />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Role</label>
-                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none"
-                >
+                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-white/5 text-white focus:ring-2 focus:ring-accent-gold/50 outline-none">
                   <option value="editor">Editor — can manage auction flow, players, teams</option>
                   <option value="viewer">Viewer — read-only dashboard access</option>
                 </select>
@@ -185,11 +172,7 @@ export default function UserManagement() {
                   <td className="px-6 py-4 text-gray-400 text-sm">{u.email || '—'}</td>
                   <td className="px-6 py-4">
                     {isOwner && !isSelf ? (
-                      <select
-                        value={u.role}
-                        onChange={e => handleRoleChange(u.id, e.target.value)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold text-white bg-gradient-to-r ${badge.color} border-0 cursor-pointer`}
-                      >
+                      <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)} className={`px-3 py-1 rounded-lg text-xs font-bold text-white bg-gradient-to-r ${badge.color} border-0 cursor-pointer`}>
                         <option value="owner">Owner</option>
                         <option value="editor">Editor</option>
                         <option value="viewer">Viewer</option>
@@ -205,9 +188,20 @@ export default function UserManagement() {
                       {isSelf ? (
                         <span className="text-xs text-gray-600">You</span>
                       ) : u.invite_token ? (
-                        <span className="text-xs text-accent-gold">Pending</span>
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => {
+                            const link = `${window.location.origin}/register-invite?token=${u.invite_token}`
+                            navigator.clipboard.writeText(link)
+                            toast.success('Invite link copied!')
+                          }} className="p-1.5 rounded-lg hover:bg-accent-gold/10 text-gray-500 hover:text-accent-gold transition-colors" title="Copy invite link">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(u.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-gray-500 hover:text-rose-400 transition-colors" title="Revoke invite">
+                            <XCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ) : (
-                        <button onClick={() => handleDelete(u.id)} className="p-2 rounded-lg hover:bg-rose-500/10 text-gray-600 hover:text-rose-400 transition-colors">
+                        <button onClick={() => handleDelete(u.id)} className="p-2 rounded-lg hover:bg-rose-500/10 text-gray-600 hover:text-rose-400 transition-colors" title="Delete user">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}

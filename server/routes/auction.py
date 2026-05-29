@@ -91,6 +91,24 @@ async def place_bid(
     if team_players >= team.max_players:
         raise HTTPException(status_code=400, detail="Team has reached max players")
 
+    # Purse validation: ensure team can still fill min players after this bid
+    min_players = auction.min_players or 0
+    if min_players > 0 and team_players < min_players:
+        slots_remaining = max(0, min_players - team_players - 1)
+        if slots_remaining > 0:
+            lowest_base = db.query(Player).filter(
+                Player.auction_id == auction.id,
+                Player.status == "unsold",
+                Player.id != auction.current_player_id,
+            ).order_by(Player.base_price.asc()).first()
+            min_cost_per_slot = lowest_base.base_price if lowest_base else (auction.base_bid or 0)
+            min_reserve = slots_remaining * min_cost_per_slot
+            if (team.remaining_budget - bid_data.amount) < min_reserve:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Budget too low - need {min_reserve} reserve for {slots_remaining} more player(s)"
+                )
+
     if auction.current_team_id == team.id:
         raise HTTPException(status_code=400, detail="Cannot place consecutive bids on same player")
 

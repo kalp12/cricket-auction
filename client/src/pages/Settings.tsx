@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image, Clock, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Upload, Volume2, Image, Clock, ToggleLeft, ToggleRight, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, deleteSlab, uploadImage, uploadAudio, setRegistrationDeadline, updateRegistrationFormConfig, toggleRegistration, assetUrl } from '../api'
+import { getAuction, updateAuction, getSlabs, bulkCreateSlabs, createDefaultSlabs, uploadImage, uploadAudio, setRegistrationDeadline, updateRegistrationFormConfig, toggleRegistration, reauctionPlayers, assetUrl } from '../api'
 import { SkeletonCard, SkeletonLine } from '../components/ui'
-import { X } from 'lucide-react'
 
 interface Slab {
   id: number
@@ -389,7 +388,25 @@ setAuction(updated); toast.success('Image removed')
   </div>
 </div>
 
-{/* Auction Rules */}
+{/* Re-Auction */}
+      <div className="glass-strong rounded-2xl p-6 mb-6">
+        <h2 className="font-display text-xl tracking-wider text-accent-gold mb-2">RE-AUCTION</h2>
+        <p className="text-sm text-white/30 mb-6">Put all passed/unsold players back into the auction pool. Use this when you want to give unsold players another chance.</p>
+        <button
+          onClick={async () => {
+            if (!window.confirm('Put all passed players back for re-auction?')) return
+            try {
+              const res = await reauctionPlayers(Number(auctionId))
+              toast.success(`${res.count} players back for re-auction!`)
+            } catch (e: any) { toast.error(e?.response?.data?.detail || 'Failed') }
+          }}
+          className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all"
+        >
+          <RotateCcw className="w-4 h-4" /> Re-Auction Passed Players
+        </button>
+      </div>
+
+      {/* Auction Rules */}
       <div className="glass-strong rounded-2xl p-6 mb-6">
         <h2 className="font-display text-xl tracking-wider text-accent-gold mb-5">AUCTION RULES</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
