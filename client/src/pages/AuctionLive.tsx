@@ -154,6 +154,7 @@ export default function AuctionLive() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!canEdit) return
       if (e.repeat) return
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'SELECT') return
       const key = e.key.toUpperCase()
@@ -399,6 +400,7 @@ export default function AuctionLive() {
         showShortcuts={showShortcuts}
         notificationsOn={notificationsOn}
         isNotificationSupported={isNotificationSupported()}
+        canEdit={canEdit}
         onBack={() => navigate(`/auctions/${auctionId}`)}
         onShare={() => {
           const url = `${window.location.origin}/watch/${auctionId}`
@@ -426,11 +428,11 @@ export default function AuctionLive() {
       <SoldOverlay overlay={ws.soldOverlay} soldStamp={auction?.sold_stamp} unsoldStamp={auction?.unsold_stamp} />
 
       {/* RTM Prompt */}
-      <RtmPrompt prompt={ws.rtmPrompt} onAccept={handleRtmAccept} onDecline={handleRtmDecline} />
+      <RtmPrompt prompt={ws.rtmPrompt} canEdit={canEdit} onAccept={handleRtmAccept} onDecline={handleRtmDecline} />
 
       {/* Sound Board */}
       <AnimatePresence>
-        {showSoundBoard && (
+        {showSoundBoard && canEdit && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-surface-1/60 backdrop-blur-xl border-b border-white/5 overflow-hidden">
             <div className="px-6 py-3 flex items-center gap-3">
               <span className="text-xs text-gray-500 font-display tracking-widest mr-2">SOUND BOARD</span>
@@ -453,6 +455,7 @@ export default function AuctionLive() {
           timerValue={ws.timerValue}
           timerMax={ws.timerMax}
           timerMode={timerMode}
+          canEdit={canEdit}
           onSold={handleSold}
           onUnsold={handleUnsold}
           onPause={handlePause}
@@ -473,6 +476,7 @@ export default function AuctionLive() {
         currentTeamId={ws.currentTeamId}
         status={ws.status}
         showShortcuts={showShortcuts}
+        canEdit={canEdit}
         keyMap={keyMap.current}
         bidEvents={bidEvents}
         unsoldCount={unsoldPlayers.length}

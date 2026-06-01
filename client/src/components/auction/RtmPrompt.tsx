@@ -14,11 +14,12 @@ interface RtmPromptData {
 
 interface Props {
   prompt: RtmPromptData | null
+  canEdit: boolean
   onAccept: () => void
   onDecline: () => void
 }
 
-export default function RtmPrompt({ prompt, onAccept, onDecline }: Props) {
+export default function RtmPrompt({ prompt, canEdit, onAccept, onDecline }: Props) {
   return (
     <AnimatePresence>
       {prompt && (
@@ -44,14 +45,18 @@ export default function RtmPrompt({ prompt, onAccept, onDecline }: Props) {
             <p className="text-center text-gray-500 text-sm mb-6">
               Does <span className="text-amber-400 font-semibold">{prompt.rtmTeamShort || prompt.rtmTeamName}</span> want to match the bid and retain <span className="text-white font-semibold">{prompt.playerName}</span>?
             </p>
-            <div className="flex gap-3">
-              <motion.button onClick={onAccept} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-black py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30">
-                MATCH — {formatPrice(prompt.price)}
-              </motion.button>
-              <motion.button onClick={onDecline} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 bg-surface-3 hover:bg-surface-4 text-gray-400 py-3.5 rounded-xl font-semibold text-lg border border-white/5">
-                Pass
-              </motion.button>
-            </div>
+            {canEdit ? (
+              <div className="flex gap-3">
+                <motion.button onClick={onAccept} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 text-black py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30">
+                  MATCH — {formatPrice(prompt.price)}
+                </motion.button>
+                <motion.button onClick={onDecline} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 bg-surface-3 hover:bg-surface-4 text-gray-400 py-3.5 rounded-xl font-semibold text-lg border border-white/5">
+                  Pass
+                </motion.button>
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 text-sm">Awaiting decision from editor...</p>
+            )}
           </motion.div>
         </motion.div>
       )}

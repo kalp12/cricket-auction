@@ -3,7 +3,8 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Team, TeamPlayer, Player, Auction
 from schemas.team import TeamCreate, TeamUpdate, TeamResponse, TeamDetailResponse
 
@@ -11,7 +12,7 @@ router = APIRouter(tags=["teams"])
 
 
 @router.post("", response_model=TeamResponse)
-async def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     # Verify auction exists
     auction = db.query(Auction).filter(Auction.id == team.auction_id).first()
     if not auction:
@@ -68,7 +69,7 @@ async def get_team(team_id: int, db: Session = Depends(get_db), current_user: di
 
 
 @router.put("/{team_id}", response_model=TeamResponse)
-async def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
@@ -81,7 +82,7 @@ async def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depen
 
 
 @router.delete("/{team_id}")
-async def delete_team(team_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def delete_team(team_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")

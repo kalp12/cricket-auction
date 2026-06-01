@@ -5,7 +5,8 @@ from typing import List
 from db.database import get_db
 from models.models import BidIncrementSlab, Auction
 from schemas.slab import SlabCreate, SlabUpdate, SlabSchema, SlabBulkCreate
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 
 router = APIRouter()
 
@@ -30,7 +31,7 @@ def list_slabs(auction_id: int, db: Session = Depends(get_db), current_user: dic
 
 
 @router.post("", response_model=SlabSchema, status_code=status.HTTP_201_CREATED)
-def create_slab(slab: SlabCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def create_slab(slab: SlabCreate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Create a bid increment slab"""
     auction = db.query(Auction).filter(Auction.id == slab.auction_id).first()
     if not auction:
@@ -43,7 +44,7 @@ def create_slab(slab: SlabCreate, db: Session = Depends(get_db), current_user: d
 
 
 @router.post("/bulk", response_model=List[SlabSchema], status_code=status.HTTP_201_CREATED)
-def create_slabs_bulk(data: SlabBulkCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def create_slabs_bulk(data: SlabBulkCreate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Create multiple slabs at once (replaces existing for that auction)"""
     auction_id = data.slabs[0].auction_id if data.slabs else None
     if not auction_id:
@@ -69,7 +70,7 @@ def create_slabs_bulk(data: SlabBulkCreate, db: Session = Depends(get_db), curre
 
 
 @router.post("/defaults/{auction_id}", response_model=List[SlabSchema], status_code=status.HTTP_201_CREATED)
-def create_default_slabs(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def create_default_slabs(auction_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Create default IPL-style slabs for an auction"""
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
@@ -91,7 +92,7 @@ def create_default_slabs(auction_id: int, db: Session = Depends(get_db), current
 
 
 @router.put("/{slab_id}", response_model=SlabSchema)
-def update_slab(slab_id: int, slab_update: SlabUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def update_slab(slab_id: int, slab_update: SlabUpdate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Update a bid increment slab"""
     db_slab = db.query(BidIncrementSlab).filter(BidIncrementSlab.id == slab_id).first()
     if not db_slab:
@@ -105,7 +106,7 @@ def update_slab(slab_id: int, slab_update: SlabUpdate, db: Session = Depends(get
 
 
 @router.delete("/{slab_id}")
-def delete_slab(slab_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def delete_slab(slab_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Delete a bid increment slab"""
     db_slab = db.query(BidIncrementSlab).filter(BidIncrementSlab.id == slab_id).first()
     if not db_slab:

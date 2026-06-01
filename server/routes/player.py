@@ -3,7 +3,8 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from schemas.player import PlayerCreate, PlayerUpdate, PlayerResponse, PlayerListResponse
 from models.models import Player, Team, TeamPlayer, Auction, Bid
 
@@ -11,7 +12,7 @@ router = APIRouter(tags=["players"])
 
 
 @router.post("", response_model=PlayerResponse)
-async def create_player(player: PlayerCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def create_player(player: PlayerCreate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     # Verify auction exists
     auction = db.query(Auction).filter(Auction.id == player.auction_id).first()
     if not auction:
@@ -52,7 +53,7 @@ async def get_player(player_id: int, db: Session = Depends(get_db), current_user
 
 
 @router.put("/{player_id}", response_model=PlayerResponse)
-async def update_player(player_id: int, player_update: PlayerUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def update_player(player_id: int, player_update: PlayerUpdate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
@@ -65,7 +66,7 @@ async def update_player(player_id: int, player_update: PlayerUpdate, db: Session
 
 
 @router.delete("/{player_id}")
-async def delete_player(player_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def delete_player(player_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
@@ -75,7 +76,7 @@ async def delete_player(player_id: int, db: Session = Depends(get_db), current_u
 
 
 @router.post("/bulk", response_model=List[PlayerResponse])
-async def bulk_create_players(players_data: List[PlayerCreate], db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def bulk_create_players(players_data: List[PlayerCreate], db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     created_players = []
     for player_data in players_data:
         player = Player(**player_data.dict())

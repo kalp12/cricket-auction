@@ -104,6 +104,9 @@ class Auction(Base):
     sponsor_tr = Column(String, nullable=True)  # top-right
     sponsor_bl = Column(String, nullable=True)  # bottom-left
     sponsor_br = Column(String, nullable=True)  # bottom-right
+    # Additional sponsor slots
+    sponsor_title = Column(String, nullable=True)  # title/main sponsor banner
+    sponsor_player = Column(String, nullable=True)  # player card sponsor badge
 
     # Custom overlay assets
     overlay_bg = Column(String, nullable=True)

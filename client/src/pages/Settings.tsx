@@ -78,6 +78,8 @@ const SPONSOR_SLOTS = [
   { key: 'sponsor_tr', label: 'Top-Right' },
   { key: 'sponsor_bl', label: 'Bottom-Left' },
   { key: 'sponsor_br', label: 'Bottom-Right' },
+  { key: 'sponsor_title', label: 'Title Sponsor' },
+  { key: 'sponsor_player', label: 'Player Card' },
 ] as const
 
 const OVERLAY_ASSET_SLOTS = [

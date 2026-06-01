@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Auction, Bid, Player, Team, TeamPlayer
 from schemas.auction import BidCreate, AuctionResponse, AuctionStateResponse
 from routes.bids import manager as ws_manager
@@ -19,7 +20,7 @@ async def start_auction(
     player_id: int,
     timer_seconds: int = 60,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
@@ -62,7 +63,7 @@ async def place_bid(
     bid_data: BidCreate,
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -148,7 +149,7 @@ async def place_bid(
 async def mark_sold(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -302,7 +303,7 @@ async def _complete_sale(auction, player, winning_team, sold_price, db):
 async def rtm_accept(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -352,7 +353,7 @@ async def rtm_accept(
 async def rtm_decline(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -400,7 +401,7 @@ async def rtm_decline(
 async def mark_unsold(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -466,7 +467,7 @@ async def mark_unsold(
 async def pause_auction(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -509,7 +510,7 @@ async def pause_auction(
 async def resume_auction(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -553,7 +554,7 @@ async def trigger_sound(
     sound_key: str = Query(..., description="Sound key: gavel, unsold, timer, celebration"),
     auction_id: int = Query(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(require_role("owner", "editor"))
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:

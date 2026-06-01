@@ -1,7 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from db.database import get_db
-from models.models import Bid, Auction, Team, Player, TeamPlayer
+from models.models import Bid, Auction, Team, Player, TeamPlayer, User
+from auth.auth import verify_token
 from routes.slabs import get_next_bid_amount
 from event_recorder import record_event
 import json
@@ -58,6 +59,7 @@ async def websocket_endpoint(
     websocket: WebSocket,
     auction_id: int,
     mode: str = Query("admin"),
+    token: str = Query(None),
     db: Session = Depends(get_db)
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -71,6 +73,31 @@ async def websocket_endpoint(
 
     is_spectator = mode == "spectator"
     await manager.connect(auction_id, websocket, mode)
+
+    # Verify JWT for admin/editor connections
+    user_role = "spectator"
+    if not is_spectator:
+        if not token:
+            await websocket.send_text(json.dumps({"type": "error", "message": "Authentication required for admin mode"}))
+            await websocket.close(code=1008)
+            return
+        try:
+            payload = verify_token(token)
+            username = payload.get("sub")
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                await websocket.send_text(json.dumps({"type": "error", "message": "User not found"}))
+                await websocket.close(code=1008)
+                return
+            user_role = user.role
+            if user_role == "viewer":
+                await websocket.send_text(json.dumps({"type": "error", "message": "Viewers cannot bid - use spectator mode"}))
+                await websocket.close(code=1008)
+                return
+        except Exception:
+            await websocket.send_text(json.dumps({"type": "error", "message": "Invalid or expired token"}))
+            await websocket.close(code=1008)
+            return
 
     try:
         # Build initial state — filter sensitive data for spectators
@@ -124,6 +151,8 @@ async def websocket_endpoint(
             "sponsor_tr": auction.sponsor_tr,
             "sponsor_bl": auction.sponsor_bl,
             "sponsor_br": auction.sponsor_br,
+        "sponsor_title": auction.sponsor_title,
+        "sponsor_player": auction.sponsor_player,
             "auction_type": auction.auction_type,
             "dutch_current_price": auction.dutch_current_price,
             "dutch_decrement": auction.dutch_decrement,

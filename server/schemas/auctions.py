@@ -6,6 +6,7 @@ from schemas.slab import SlabSchema
 
 class AuctionCreate(BaseModel):
     name: str = "Untitled Auction"
+    auction_type: Optional[str] = None
     timer_seconds: int = 60
     timer_mode: str = "auto"  # auto/manual/off
     base_bid: float = 1000000
@@ -13,6 +14,9 @@ class AuctionCreate(BaseModel):
     min_players: int = 5
     max_players: int = 18
     image_url: Optional[str] = None
+    dutch_start_price: Optional[float] = None
+    dutch_decrement: Optional[float] = None
+    dutch_interval: Optional[int] = None
 
 
 class AuctionUpdate(BaseModel):
@@ -34,6 +38,8 @@ class AuctionUpdate(BaseModel):
     sponsor_tr: Optional[str] = None
     sponsor_bl: Optional[str] = None
     sponsor_br: Optional[str] = None
+    sponsor_title: Optional[str] = None
+    sponsor_player: Optional[str] = None
     overlay_bg: Optional[str] = None
     sold_stamp: Optional[str] = None
     unsold_stamp: Optional[str] = None
@@ -67,6 +73,8 @@ class AuctionSchema(BaseModel):
     sponsor_tr: Optional[str] = None
     sponsor_bl: Optional[str] = None
     sponsor_br: Optional[str] = None
+    sponsor_title: Optional[str] = None
+    sponsor_player: Optional[str] = None
     overlay_bg: Optional[str] = None
     sold_stamp: Optional[str] = None
     unsold_stamp: Optional[str] = None

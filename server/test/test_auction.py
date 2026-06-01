@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from db.database import Base, get_db
-from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate, User, AuctionEvent
+from models.models import Player, Auction, Team, TeamPlayer, Bid, BidIncrementSlab, Registration, StatUpdate, User, AuctionEvent, ProxyBid
 from auth.auth import get_current_user, create_access_token, verify_token
 
 # ── In-memory SQLite setup ───────────────────────────────
@@ -56,6 +56,21 @@ AUCTION_ID = 1
 def auth_headers():
     token = create_access_token(data={"sub": "admin", "role": "owner"})
     return {"Authorization": f"Bearer {token}"}
+
+
+def ws_url(auction_id: int, mode: str = 'admin') -> str:
+    db = TestSessionLocal()
+    try:
+        if not db.query(User).filter(User.username == 'admin').first():
+            db.add(User(username='admin', role='owner', password_hash='x'))
+            db.commit()
+    finally:
+        db.close()
+    path = f'/ws/auction/{auction_id}?mode={mode}'
+    if mode != 'spectator':
+        token = create_access_token(data={'sub': 'admin', 'role': 'owner'})
+        path += f'&token={token}'
+    return path
 
 
 def seed_auction(**overrides):
@@ -1473,14 +1488,14 @@ class TestImportTeams:
 
 class TestWebSocket:
     def test_ws_invalid_auction(self):
-        with client.websocket_connect("/ws/auction/99999") as ws:
+        with client.websocket_connect(ws_url(99999)) as ws:
             data = ws.receive_text()
             msg = json.loads(data)
             assert msg["type"] == "error"
 
     def test_ws_valid_auction_receives_state(self):
         seed_auction()
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             data = ws.receive_text()
             msg = json.loads(data)
             assert msg["type"] == "state"
@@ -1488,7 +1503,7 @@ class TestWebSocket:
 
     def test_ws_ping_pong(self):
         seed_auction()
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             ws.receive_text()  # consume initial state
             ws.send_text(json.dumps({"type": "ping"}))
             data = ws.receive_text()
@@ -1499,7 +1514,7 @@ class TestWebSocket:
         seed_auction()
         t = create_team(name="WS Team")
         tid = t.json()["id"]
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             ws.receive_text()  # consume state
             ws.send_text(json.dumps({"type": "bid", "team_id": tid, "amount": 200000}))
             data = ws.receive_text()
@@ -1509,7 +1524,7 @@ class TestWebSocket:
 
     def test_ws_invalid_json(self):
         seed_auction()
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             ws.receive_text()
             ws.send_text("not json{{{")
             data = ws.receive_text()
@@ -1518,7 +1533,7 @@ class TestWebSocket:
 
     def test_ws_bid_missing_team_id(self):
         seed_auction()
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             ws.receive_text()
             ws.send_text(json.dumps({"type": "bid", "amount": 100}))
             data = ws.receive_text()
@@ -1528,7 +1543,7 @@ class TestWebSocket:
 
     def test_ws_bid_nonexistent_team(self):
         seed_auction(status="live")
-        with client.websocket_connect(f"/ws/auction/{AUCTION_ID}") as ws:
+        with client.websocket_connect(ws_url(AUCTION_ID)) as ws:
             ws.receive_text()
             ws.send_text(json.dumps({"type": "bid", "team_id": 99999, "amount": 500000}))
             data = ws.receive_text()

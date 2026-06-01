@@ -76,6 +76,16 @@ def get_public_auction(auction_id: int, db: Session = Depends(get_db)):
         "sold_count": sold_count,
         "total_players": total_count,
         "timer_mode": auction.timer_mode,
+        "timer_seconds": auction.timer_seconds,
+        "sponsor_tl": auction.sponsor_tl,
+        "sponsor_tr": auction.sponsor_tr,
+        "sponsor_bl": auction.sponsor_bl,
+        "sponsor_br": auction.sponsor_br,
+        "sponsor_title": auction.sponsor_title,
+        "sponsor_player": auction.sponsor_player,
+        "overlay_bg": auction.overlay_bg,
+        "sold_stamp": auction.sold_stamp,
+        "unsold_stamp": auction.unsold_stamp,
     }
 
 
@@ -134,4 +144,13 @@ def get_public_auction_state(auction_id: int = None, db: Session = Depends(get_d
         "current_team": team_data,
         "teams": teams_public,
         "timer_mode": auction.timer_mode,
+        "sponsor_tl": auction.sponsor_tl,
+        "sponsor_tr": auction.sponsor_tr,
+        "sponsor_bl": auction.sponsor_bl,
+        "sponsor_br": auction.sponsor_br,
+        "sponsor_title": auction.sponsor_title,
+        "sponsor_player": auction.sponsor_player,
+        "overlay_bg": auction.overlay_bg,
+        "sold_stamp": auction.sold_stamp,
+        "unsold_stamp": auction.unsold_stamp,
     }

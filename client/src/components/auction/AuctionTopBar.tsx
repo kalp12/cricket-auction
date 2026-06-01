@@ -11,6 +11,7 @@ interface Props {
   showShortcuts: boolean
   notificationsOn: boolean
   isNotificationSupported: boolean
+  canEdit: boolean
   onBack: () => void
   onShare: () => void
   onSpectate: () => void
@@ -23,7 +24,7 @@ interface Props {
 
 export default function AuctionTopBar({
   auctionName, status, soldCount, totalPlayers,
-  shareCopied, showSoundBoard, showShortcuts, notificationsOn, isNotificationSupported,
+  shareCopied, showSoundBoard, showShortcuts, notificationsOn, isNotificationSupported, canEdit,
   onBack, onShare, onSpectate, onOverlay, onToggleSounds, onToggleShortcuts, onToggleNotifications, onSettings,
 }: Props) {
   return (
@@ -49,6 +50,7 @@ export default function AuctionTopBar({
           {status}
         </motion.span>
         <span className="text-sm text-gray-500 shrink-0 hidden sm:inline">{soldCount}/{totalPlayers} sold</span>
+        {!canEdit && <span className="text-xs text-gray-600 bg-surface-2 px-2 py-1 rounded-lg font-medium">VIEWER</span>}
       </div>
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
         <button onClick={onShare} className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors" title="Copy spectator link">
@@ -61,20 +63,26 @@ export default function AuctionTopBar({
         <button onClick={onOverlay} className="text-gray-500 hover:text-accent-gold flex items-center gap-1 text-sm transition-colors" title="Open broadcast overlay">
           <ExternalLink className="w-4 h-4" /> Overlay
         </button>
-        <button onClick={onToggleSounds} className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}>
-          <Volume2 className="w-4 h-4" /> Sounds
-        </button>
-        <button onClick={onToggleShortcuts} className="text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors">
-          <Keyboard className="w-4 h-4" /> Keys
-        </button>
+        {canEdit && (
+          <button onClick={onToggleSounds} className={showSoundBoard ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors'}>
+            <Volume2 className="w-4 h-4" /> Sounds
+          </button>
+        )}
+        {canEdit && (
+          <button onClick={onToggleShortcuts} className="text-gray-500 hover:text-white flex items-center gap-1 text-sm transition-colors">
+            <Keyboard className="w-4 h-4" /> Keys
+          </button>
+        )}
         {isNotificationSupported && (
           <button onClick={onToggleNotifications} className={notificationsOn ? 'text-accent-gold hover:text-amber-300 flex items-center gap-1 text-sm' : 'text-gray-600 hover:text-gray-400 flex items-center gap-1 text-sm'}>
             {notificationsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
           </button>
         )}
-        <button onClick={onSettings} className="text-gray-500 hover:text-white transition-colors shrink-0">
-          <Settings className="w-5 h-5" />
-        </button>
+        {canEdit && (
+          <button onClick={onSettings} className="text-gray-500 hover:text-white transition-colors shrink-0">
+            <Settings className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </div>
   )

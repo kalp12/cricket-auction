@@ -2,7 +2,8 @@ import os
 import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 @router.post("/image")
-async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def upload_image(file: UploadFile = File(...), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in IMAGE_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {', '.join(IMAGE_EXTENSIONS)}")
@@ -35,7 +36,7 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
 
 
 @router.post("/audio")
-async def upload_audio(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def upload_audio(file: UploadFile = File(...), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in AUDIO_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {', '.join(AUDIO_EXTENSIONS)}")

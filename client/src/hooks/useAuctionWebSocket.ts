@@ -74,6 +74,7 @@ export interface UseAuctionWSOptions {
   initialCurrentPlayer?: PlayerData | null
   initialCurrentTeamId?: number | null
   timerSeconds?: number
+  token?: string
   onPlaySound?: (key: string) => void
 }
 
@@ -88,6 +89,7 @@ export function useAuctionWebSocket(options: UseAuctionWSOptions) {
     initialCurrentPlayer = null,
     initialCurrentTeamId = null,
     timerSeconds: initialTimerSeconds = 30,
+    token,
     onPlaySound,
   } = options
 
@@ -152,9 +154,10 @@ export function useAuctionWebSocket(options: UseAuctionWSOptions) {
   useEffect(() => {
     if (!auctionId) return
 
+    const tokenParam = token ? `&token=${token}` : ''
     const wsUrl = mode === 'spectator'
       ? `${WS_BASE}/ws/auction/${auctionId}?mode=spectator`
-      : `${WS_BASE}/ws/auction/${auctionId}`
+      : `${WS_BASE}/ws/auction/${auctionId}?mode=admin${tokenParam}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 

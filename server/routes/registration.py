@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Registration, Player, Auction
 from email_util import send_registration_confirmation, send_approval_notification, send_rejection_notification
 
@@ -183,7 +184,7 @@ async def approve_registration(
     registration_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     reg = db.query(Registration).filter(Registration.id == registration_id).first()
     if not reg:
@@ -232,7 +233,7 @@ async def reject_registration(
     registration_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     reg = db.query(Registration).filter(Registration.id == registration_id).first()
     if not reg:
@@ -259,7 +260,7 @@ async def reject_registration(
 
 # ── Admin: Toggle registration open/close ──────────────
 @router.post("/{auction_id}/toggle")
-async def toggle_registration(auction_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+async def toggle_registration(auction_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
         raise HTTPException(404, "Auction not found")
@@ -274,7 +275,7 @@ async def set_registration_deadline(
     auction_id: int,
     deadline: Optional[str] = None,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
@@ -301,7 +302,7 @@ async def update_form_config(
     auction_id: int,
     config: dict,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:

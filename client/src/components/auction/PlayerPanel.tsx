@@ -27,6 +27,7 @@ interface Props {
   timerValue: number
   timerMax: number
   timerMode: string
+  canEdit: boolean
   onSold: () => void
   onUnsold: () => void
   onPause: () => void
@@ -44,7 +45,7 @@ interface Props {
 
 export default function PlayerPanel({
   currentPlayer, currentBid, leadingTeam, nextBidAmount, status, soldOverlay,
-  timerValue, timerMax, timerMode,
+  timerValue, timerMax, timerMode, canEdit,
   onSold, onUnsold, onPause, onResume, onNextPlayer, onStart, onStartTimer, onResetTimer,
   nextButtonRef, soldCount, passedCount, unsoldCount, totalPlayers,
 }: Props) {
@@ -67,7 +68,7 @@ export default function PlayerPanel({
             {timerMode !== 'off' && status === 'live' && (
               <div className="mt-4 flex items-center justify-center gap-3">
                 <TimerCircle seconds={timerValue} maxSeconds={timerMax} />
-                {timerMode === 'manual' && (
+                {timerMode === 'manual' && canEdit && (
                   <div className="flex flex-col gap-1">
                     <button onClick={onStartTimer} className="text-xs bg-emerald-600/80 hover:bg-emerald-600 px-2 py-1 rounded-lg flex items-center gap-1"><Play className="w-3 h-3" /> Start</button>
                     <button onClick={onResetTimer} className="text-xs bg-surface-3 hover:bg-surface-4 px-2 py-1 rounded-lg flex items-center gap-1"><TimerOff className="w-3 h-3" /> Reset</button>
@@ -79,9 +80,11 @@ export default function PlayerPanel({
         ) : status === 'live' || status === 'waiting' ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
             <div className="text-gray-600 text-xl mb-4">No player selected</div>
-            <motion.button onClick={onNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
-              <Shuffle className="w-5 h-5" /> Random Player
-            </motion.button>
+            {canEdit && (
+              <motion.button onClick={onNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary-600/20">
+                <Shuffle className="w-5 h-5" /> Random Player
+              </motion.button>
+            )}
           </motion.div>
         ) : status === 'ended' ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
@@ -91,15 +94,17 @@ export default function PlayerPanel({
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
             <div className="text-gray-600 text-xl mb-4">Auction not started</div>
-            <motion.button onClick={onStart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-emerald-600/20">
-              <Play className="w-5 h-5" /> Start Auction
-            </motion.button>
+            {canEdit && (
+              <motion.button onClick={onStart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg shadow-emerald-600/20">
+                <Play className="w-5 h-5" /> Start Auction
+              </motion.button>
+            )}
           </motion.div>
         )}
       </div>
 
       <AnimatePresence>
-        {status === 'live' && currentPlayer && !soldOverlay && (
+        {canEdit && status === 'live' && currentPlayer && !soldOverlay && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-4 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-center gap-2 md:gap-4">
             <motion.button ref={nextButtonRef} onClick={onNextPlayer} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-surface-3 hover:bg-surface-4 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm transition-colors border border-white/5">
               <Shuffle className="w-4 h-4" /> Random (R)
@@ -115,7 +120,7 @@ export default function PlayerPanel({
             </motion.button>
           </motion.div>
         )}
-        {status === 'paused' && (
+        {canEdit && status === 'paused' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-surface-1/60 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex items-center justify-center gap-3">
             <motion.button onClick={onResume} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20">
               <Play className="w-4 h-4" /> Resume

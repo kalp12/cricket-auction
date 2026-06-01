@@ -98,6 +98,7 @@ export default function SpectatorWatch() {
       <SponsorSlot src={auction?.sponsor_tr} position="top-right" />
       <SponsorSlot src={auction?.sponsor_bl} position="bottom-left" />
       <SponsorSlot src={auction?.sponsor_br} position="bottom-right" />
+      <SponsorSlot src={auction?.sponsor_title} position="title-bar" />
 
       {/* Top bar */}
       <div className="bg-surface-1/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-3 flex items-center justify-between relative z-10">
@@ -156,7 +157,7 @@ export default function SpectatorWatch() {
           {ws.currentPlayer ? (
             <motion.div key={ws.currentPlayer.id} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }} className="text-center">
               <div className="text-gray-400 text-sm mb-2 uppercase tracking-widest">{ws.currentPlayer.role} — {ws.currentPlayer.country}</div>
-              <h2 className="font-display text-4xl md:text-6xl tracking-wide text-white mb-2">{ws.currentPlayer.name}</h2>
+              <h2 className="font-display text-4xl md:text-6xl tracking-wide text-white mb-2 inline-block">{ws.currentPlayer.name}<SponsorSlot src={auction?.sponsor_player} position="player-card" /></h2>
               <div className="text-gray-500 text-sm mb-6">Base: {formatPrice(ws.currentPlayer.base_price)}</div>
 
               <div className="glass-strong rounded-3xl px-14 py-8 inline-block">

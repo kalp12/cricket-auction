@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from openpyxl.reader.excel import load_workbook
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Player, Auction, StatUpdate
 
 router = APIRouter()
@@ -60,7 +61,7 @@ async def upload_stats_file(
     auction_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
@@ -167,7 +168,7 @@ async def upload_stats_file(
 async def commit_stats_import(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction_id = data.get("auction_id")
     source = data.get("source", "custom")

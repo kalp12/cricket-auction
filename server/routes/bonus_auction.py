@@ -6,7 +6,8 @@ import asyncio
 import json
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Auction, Bid, Player, Team, TeamPlayer, ProxyBid
 from routes.bids import manager as ws_manager
 from event_recorder import record_event
@@ -22,7 +23,7 @@ async def submit_sealed_bid(
     amount: float = Query(...),
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -90,7 +91,7 @@ async def submit_sealed_bid(
 async def reveal_sealed_bids(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -174,7 +175,7 @@ async def reveal_sealed_bids(
 async def confirm_sealed_sale(
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -260,7 +261,7 @@ async def start_dutch_auction(
     auction_id: int = Query(...),
     player_id: int = Query(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
@@ -317,7 +318,7 @@ async def accept_dutch_price(
     team_id: int = Query(...),
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()
@@ -374,7 +375,7 @@ async def set_proxy_bid(
     max_amount: float = Query(...),
     auction_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     if auction_id:
         auction = db.query(Auction).filter(Auction.id == auction_id).first()

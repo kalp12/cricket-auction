@@ -6,7 +6,8 @@ from typing import List, Optional
 from db.database import get_db
 from models.models import Auction, Player, Team
 from schemas.auctions import AuctionSchema, AuctionCreate, AuctionUpdate
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from routes.bids import manager as ws_manager
 from event_recorder import record_event
 
@@ -14,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=AuctionSchema, status_code=status.HTTP_201_CREATED)
-def create_auction(auction: AuctionCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def create_auction(auction: AuctionCreate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Create a new auction (admin only)"""
     db_auction = Auction(
         name=auction.name,
@@ -53,7 +54,7 @@ def get_auction(auction_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{auction_id}", response_model=AuctionSchema)
-def update_auction(auction_id: int, auction_update: AuctionUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def update_auction(auction_id: int, auction_update: AuctionUpdate, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Update auction settings"""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -67,7 +68,7 @@ def update_auction(auction_id: int, auction_update: AuctionUpdate, db: Session =
 
 
 @router.delete("/{auction_id}")
-def delete_auction(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def delete_auction(auction_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Delete an auction"""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -78,7 +79,7 @@ def delete_auction(auction_id: int, db: Session = Depends(get_db), current_user:
 
 
 @router.post("/{auction_id}/start", status_code=status.HTTP_200_OK)
-async def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def start_auction(auction_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Start an auction (admin only). Clears current player — use next-player to pick one."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -109,7 +110,7 @@ async def start_auction(auction_id: int, db: Session = Depends(get_db), current_
 
 
 @router.post("/{auction_id}/next-player", status_code=status.HTTP_200_OK)
-async def next_player(auction_id: int, random_select: bool = Query(True), player_id: int = Query(None), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def next_player(auction_id: int, random_select: bool = Query(True), player_id: int = Query(None), db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Move to next player. Default: random. Use player_id to pick a specific player."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:
@@ -214,7 +215,7 @@ async def next_player(auction_id: int, random_select: bool = Query(True), player
 
 
 @router.post("/{auction_id}/reauction", status_code=status.HTTP_200_OK)
-async def reauction_passed_players(auction_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def reauction_passed_players(auction_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(require_role("owner", "editor"))):
     """Reset all 'passed' players back to 'unsold' so they can be re-auctioned."""
     db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not db_auction:

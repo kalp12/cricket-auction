@@ -7,7 +7,8 @@ from openpyxl import Workbook
 from openpyxl.reader.excel import load_workbook
 
 from db.database import get_db
-from auth.auth import get_current_user
+from auth.auth import get_current_user, require_role
+from schemas.auth import UserResponse
 from models.models import Team, Auction
 
 router = APIRouter()
@@ -71,7 +72,7 @@ async def upload_team_file(
     auction_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction = db.query(Auction).filter(Auction.id == auction_id).first()
     if not auction:
@@ -129,7 +130,7 @@ async def upload_team_file(
 async def commit_team_import(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserResponse = Depends(require_role("owner", "editor")),
 ):
     auction_id = data.get("auction_id")
     mapping = data.get("mapping", {})

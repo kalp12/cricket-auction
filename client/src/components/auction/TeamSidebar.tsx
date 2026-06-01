@@ -24,18 +24,19 @@ interface Props {
   currentTeamId: number | null
   status: string
   showShortcuts: boolean
+  canEdit: boolean
   keyMap: Record<string, Team>
   bidEvents: BidEvent[]
   unsoldCount: number
   onBid: (teamId: number) => void
 }
 
-export default function TeamSidebar({ teams, currentTeamId, status, showShortcuts, keyMap, bidEvents, unsoldCount, onBid }: Props) {
+export default function TeamSidebar({ teams, currentTeamId, status, showShortcuts, canEdit, keyMap, bidEvents, unsoldCount, onBid }: Props) {
   return (
     <div className="w-full lg:w-80 bg-surface-1/40 backdrop-blur-lg border-l-0 lg:border-l border-t lg:border-t-0 border-white/5 flex flex-col max-h-[60vh] lg:max-h-none overflow-hidden">
       <div className="flex-1 overflow-y-auto p-3 space-y-2 dark-scrollbar">
         <div className="flex items-center justify-between mb-2 px-1">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Teams — Click to Bid</h3>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{canEdit ? 'Teams — Click to Bid' : 'Teams'}</h3>
         </div>
         {teams.map(team => {
           const key = Object.entries(keyMap).find(([_, t]) => t.id === team.id)?.[0]
@@ -46,7 +47,7 @@ export default function TeamSidebar({ teams, currentTeamId, status, showShortcut
               key={team.id}
               layout
               onClick={() => onBid(team.id)}
-              disabled={status !== 'live'}
+              disabled={!canEdit || status !== 'live'}
               animate={isLeading ? { scale: 1.02 } : { scale: 1 }}
               className={`w-full rounded-xl p-3 border text-left transition-all duration-300 ${
                 isLeading ? 'bg-accent-gold/10 border-accent-gold/30 glow-gold' : 'bg-surface-2/50 border-white/5 hover:bg-surface-3/50 hover:border-white/10'
