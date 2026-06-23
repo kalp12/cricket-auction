@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from db.database import engine, Base, SessionLocal
 from sqlalchemy import text
 from routes.auth import router as auth_router
@@ -161,6 +162,19 @@ app.include_router(bonus_auction_router, prefix="/api/auction", tags=["bonus-auc
 app.include_router(bids_router, tags=["websocket"])
 
 
-@app.get("/")
-async def root():
-    return {"message": "Cricket Auction API running"}
+# Serve React SPA when STATIC_DIR is set (production / Docker)
+STATIC_DIR = os.getenv("STATIC_DIR")
+if STATIC_DIR and os.path.isdir(STATIC_DIR):
+    _static_root = os.path.normpath(STATIC_DIR)
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path:
+            file_path = os.path.normpath(os.path.join(_static_root, full_path))
+            if file_path.startswith(_static_root) and os.path.isfile(file_path):
+                return FileResponse(file_path)
+        return FileResponse(os.path.join(_static_root, "index.html"))
+else:
+    @app.get("/")
+    async def root():
+        return {"message": "Cricket Auction API running"}

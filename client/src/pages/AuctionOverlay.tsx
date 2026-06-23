@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSoundBoard } from '../hooks/useSoundBoard'
 import { useAuctionWebSocket } from '../hooks/useAuctionWebSocket'
-import { getAuction, getTeams, assetUrl } from '../api'
+import { getAuction, getTeams, getAuctionState, assetUrl } from '../api'
 import SoldOverlay from '../components/auction/SoldOverlay'
 import TimerCircle from '../components/auction/TimerCircle'
 import SponsorSlot from '../components/auction/SponsorSlot'
@@ -48,17 +48,17 @@ export default function AuctionOverlay() {
       setLoading(true)
       setFetchError('')
       try {
-        const [auctionData, teamsData] = await Promise.all([
-          getAuction(Number(auctionId)), getTeams(Number(auctionId)),
+        const [auctionData, teamsData, stateData] = await Promise.all([
+          getAuction(Number(auctionId)), getTeams(Number(auctionId)), getAuctionState(Number(auctionId)),
         ])
         setAuction(auctionData)
         setTeams(teamsData)
         ws.updateTeams(teamsData)
-        ws.setCurrentBid(auctionData.current_bid)
-        ws.setCurrentTeamId(auctionData.current_team_id)
-        ws.setStatus(auctionData.status)
-        if (auctionData.current_player_id) {
-          // Overlay doesn't need to fetch player separately, WS state msg has it
+        ws.setCurrentBid(stateData.current_auction?.current_bid ?? auctionData.current_bid)
+        ws.setCurrentTeamId(stateData.current_auction?.current_team_id ?? auctionData.current_team_id)
+        ws.setStatus(stateData.current_auction?.status ?? auctionData.status)
+        if (stateData.current_player) {
+          ws.setCurrentPlayer(stateData.current_player)
         }
         if (auctionData.timer_seconds) ws.setTimer(auctionData.timer_seconds)
       } catch (e: any) {

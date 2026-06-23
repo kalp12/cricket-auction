@@ -1,3 +1,10 @@
+.claude
+.agents
+.git
+.claudeignore
+.gitignore
+.dockerignore
+
 # Videos and large media
 *.mp4
 *.mov

@@ -29,6 +29,7 @@ class AuctionUpdate(BaseModel):
     min_players: Optional[int] = None
     max_players: Optional[int] = None
     status: Optional[str] = None
+    rtm_enabled: Optional[int] = None
     image_url: Optional[str] = None
     dutch_start_price: Optional[float] = None
     dutch_current_price: Optional[float] = None
@@ -65,6 +66,7 @@ class AuctionSchema(BaseModel):
     max_players: int = 18
     image_url: Optional[str] = None
     auction_type: str = "english"
+    rtm_enabled: Optional[int] = None
     dutch_start_price: Optional[float] = None
     dutch_current_price: Optional[float] = None
     dutch_decrement: Optional[float] = None

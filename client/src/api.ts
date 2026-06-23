@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-const BASE = 'http://localhost:8000'
-const WS_BASE = 'ws://localhost:8000'
+const BASE = window.location.origin
+const WS_BASE = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` })
 
 export const assetUrl = (url: string | null | undefined) => url ? (url.startsWith('http') ? url : `${BASE}${url}`) : null

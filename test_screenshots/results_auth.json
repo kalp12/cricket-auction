@@ -1,0 +1,17 @@
+{
+  "page": "Auth",
+  "api_calls": [
+    "POST http://localhost:8000/api/auth/login"
+  ],
+  "console_errors": [
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "issues": [
+    "PASS: Unauthenticated /dashboard redirects to login",
+    "PASS: Error shown for wrong credentials: Incorrect username or password",
+    "PASS: Successful login redirects to http://localhost:3000/dashboard",
+    "PASS: JWT token stored in localStorage (length: 144)",
+    "INFO: Auth API calls during login: ['POST http://localhost:8000/api/auth/login']",
+    "PASS: Token cleared after logout"
+  ]
+}
